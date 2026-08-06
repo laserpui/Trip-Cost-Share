@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#E5FFFF">
+  <title>Admin · Trip Cost Share v5.2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div><p class="eyebrow">ADMIN CONSOLE · V5.2</p><h1>หน้าหลังบ้าน</h1><p class="subtitle">แก้ไข ลบ ตรวจสอบ และปิดยอดกิจกรรม</p></div>
+      <div class="topbar-actions">
+        <span id="adminConnectionBadge" class="badge badge-warning">รอเข้าสู่ระบบ</span>
+        <a class="btn btn-secondary" href="index.html">กลับหน้าหลัก</a>
+        <button id="adminRefreshBtn" class="btn btn-secondary hidden" type="button">รีเฟรช</button>
+        <button id="adminLogoutBtn" class="btn btn-danger hidden" type="button">ออกจากระบบ</button>
+      </div>
+    </header>
+
+    <section id="adminLoginSection" class="admin-login-shell">
+      <article class="panel admin-login-card">
+        <div class="admin-lock-icon">🔐</div>
+        <h2>เข้าสู่หน้าหลังบ้าน</h2>
+        <p>กรอกรหัส Admin เพื่อจัดการข้อมูล</p>
+        <form id="adminLoginForm" class="form-grid">
+          <label class="field"><span>รหัสผ่าน Admin</span><input id="adminPassword" type="password" autocomplete="current-password" required autofocus></label>
+          <button class="btn btn-primary" type="submit">เข้าสู่ระบบ</button>
+        </form>
+        <p class="helper-text">รหัสเริ่มต้น: Admin1234 ควรเปลี่ยนก่อนใช้งานจริง</p>
+      </article>
+    </section>
+
+    <main id="adminApp" class="hidden">
+      <div id="adminDemoBanner" class="notice hidden"><strong>โหมดทดลอง:</strong> ใช้ข้อมูล localStorage ชุดเดียวกับหน้าหลัก</div>
+
+      <section class="summary-grid">
+        <article class="summary-card"><span>ผู้ร่วมกิจกรรม</span><strong id="adminParticipantCount">0</strong><small>รายชื่อที่ใช้งาน</small></article>
+        <article class="summary-card"><span>ใบเสร็จ</span><strong id="adminReceiptCount">0</strong><small>รายการทั้งหมด</small></article>
+        <article class="summary-card"><span>ค่าใช้จ่ายรวม</span><strong id="adminGrandTotal">฿0.00</strong><small>ยอดใบเสร็จรวม</small></article>
+        <article class="summary-card accent-card"><span>สถานะกิจกรรม</span><strong id="adminStatusText">OPEN</strong><small>เปิดหรือปิดการบันทึก</small></article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading"><div><h2>ตั้งค่ากิจกรรม</h2><p>เมื่อปิดกิจกรรม หน้าหลักจะดูข้อมูลได้ แต่เพิ่มข้อมูลใหม่ไม่ได้</p></div></div>
+        <form id="adminSettingsForm" class="settings-grid">
+          <label class="field"><span>ชื่อกิจกรรม</span><input id="adminEventName" type="text" maxlength="100" required></label>
+          <label class="field"><span>วันเริ่ม</span><input id="adminStartDate" type="date" required></label>
+          <label class="field"><span>วันสิ้นสุด</span><input id="adminEndDate" type="date" required></label>
+          <label class="field"><span>สถานะ</span><select id="adminEventStatus"><option value="open">เปิดรับข้อมูล</option><option value="closed">ปิดยอด/ล็อกกิจกรรม</option></select></label>
+          <button class="btn btn-primary" type="submit">บันทึกการตั้งค่า</button>
+        </form>
+      </section>
+
+      <section class="two-column admin-editor-grid">
+        <article class="panel">
+          <div class="panel-heading"><div><h2>แก้ไขผู้ร่วมกิจกรรม</h2><p>เลือกจากตารางด้านล่าง หรือเพิ่มรายชื่อใหม่</p></div></div>
+          <form id="adminParticipantForm" class="form-grid">
+            <input id="adminParticipantId" type="hidden">
+            <label class="field"><span>ชื่อ</span><input id="adminParticipantName" type="text" maxlength="80" required></label>
+            <fieldset class="choice-fieldset"><legend>วันที่เข้าร่วม</legend><div id="adminAttendanceOptions" class="checkbox-grid"></div></fieldset>
+            <fieldset class="choice-fieldset"><legend>คืนที่พัก</legend><div id="adminLodgingOptions" class="checkbox-grid"></div></fieldset>
+            <label class="switch-field standalone-switch"><input id="adminDrinksAlcohol" type="checkbox"><span class="switch"></span><span>ปกติดื่มแอลกอฮอล์</span></label>
+            <label class="switch-field standalone-switch"><input id="adminParticipantActive" type="checkbox" checked><span class="switch"></span><span>สถานะใช้งาน</span></label>
+            <div class="form-actions"><button id="adminParticipantSubmitBtn" class="btn btn-primary" type="submit">เพิ่มรายชื่อ</button><button id="adminParticipantCancelBtn" class="btn btn-secondary hidden" type="button">ยกเลิกแก้ไข</button></div>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading"><div><h2>แก้ไขการชำระคืน</h2><p>เพิ่มหรือแก้รายการโอนระหว่างสมาชิก</p></div></div>
+          <form id="adminSettlementForm" class="form-grid">
+            <input id="adminSettlementId" type="hidden">
+            <label class="field"><span>วันที่</span><input id="adminSettlementDate" type="date" required></label>
+            <div class="field-row">
+              <label class="field"><span>ผู้โอน</span><select id="adminSettlementFrom" required></select></label>
+              <label class="field"><span>ผู้รับ</span><select id="adminSettlementTo" required></select></label>
+            </div>
+            <label class="field"><span>จำนวนเงิน</span><input id="adminSettlementAmount" type="number" min="0.01" step="0.01" required></label>
+            <label class="field"><span>หมายเหตุ</span><input id="adminSettlementNote" type="text" maxlength="160"></label>
+            <div class="form-actions"><button id="adminSettlementSubmitBtn" class="btn btn-primary" type="submit">เพิ่มรายการโอน</button><button id="adminSettlementCancelBtn" class="btn btn-secondary hidden" type="button">ยกเลิกแก้ไข</button></div>
+          </form>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading"><div><h2>แก้ไขใบเสร็จและการหาร</h2><p>กดแก้ไขจากตารางใบเสร็จ ระบบจะโหลดผู้จ่าย รายการย่อย และรายชื่อผู้รับผิดชอบเดิม</p></div></div>
+        <form id="adminReceiptForm" class="form-grid">
+          <input id="adminReceiptId" type="hidden">
+          <div class="field-row">
+            <label class="field"><span>วันที่ใบเสร็จ</span><input id="adminReceiptDate" type="date" required></label>
+            <label class="field"><span>ร้านค้า/ผู้ให้บริการ</span><input id="adminReceiptMerchant" type="text" maxlength="120" required></label>
+          </div>
+          <div class="field-row">
+            <label class="field"><span>ยอดรวม</span><input id="adminReceiptTotal" type="number" min="0.01" step="0.01" required></label>
+            <label class="field"><span>เปลี่ยนรูปใบเสร็จ</span><input id="adminReceiptImage" type="file" accept="image/jpeg,image/png,image/webp"></label>
+          </div>
+          <label class="field"><span>หมายเหตุ</span><input id="adminReceiptNote" type="text" maxlength="180"></label>
+          <div id="adminExistingReceipt" class="existing-receipt hidden">
+            <div><strong>มีรูปใบเสร็จเดิม</strong><span>เลือกไฟล์ใหม่เพื่อแทนที่ หรือเลือกลบรูปเดิม</span></div>
+            <div class="existing-receipt-actions"><button id="adminViewReceiptBtn" class="btn btn-secondary" type="button">ดูรูปเดิม</button><label class="remove-receipt-option"><input id="adminRemoveReceipt" type="checkbox"><span>ลบรูปเดิม</span></label></div>
+          </div>
+          <section class="builder-block">
+            <div class="builder-heading"><div><h3>ผู้สำรองจ่าย</h3><p>ยอดรวมต้องตรงกับยอดใบเสร็จ</p></div><button id="adminAddPayerBtn" class="btn btn-secondary" type="button">เพิ่มผู้จ่าย</button></div>
+            <div id="adminPayerRows" class="dynamic-list"></div>
+          </section>
+          <section class="builder-block">
+            <div class="builder-heading"><div><h3>รายการย่อย</h3><p>แก้ไขวิธีหาร รายชื่อ น้ำหนัก หรือยอดรายบุคคล</p></div><button id="adminAddLineBtn" class="btn btn-secondary" type="button">เพิ่มรายการ</button></div>
+            <div id="adminLineRows" class="dynamic-list expense-lines"></div>
+          </section>
+          <div id="adminReceiptValidation" class="warning-box hidden"></div>
+          <div class="form-actions"><button id="adminReceiptSubmitBtn" class="btn btn-primary" type="submit">บันทึกใบเสร็จ</button><button id="adminReceiptCancelBtn" class="btn btn-secondary hidden" type="button">ยกเลิกแก้ไข</button></div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading"><div><h2>จัดการผู้ร่วมกิจกรรม</h2></div></div>
+        <div class="table-wrap"><table><thead><tr><th>ชื่อ</th><th>วันที่มา</th><th>คืนพัก</th><th>สถานะ</th><th class="text-right">จัดการ</th></tr></thead><tbody id="adminParticipantTableBody"></tbody></table></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading"><div><h2>จัดการใบเสร็จ</h2></div></div>
+        <div class="table-wrap"><table><thead><tr><th>วันที่</th><th>ร้านค้า</th><th>รายการย่อย</th><th>ใบเสร็จ</th><th class="text-right">ยอดรวม</th><th class="text-right">จัดการ</th></tr></thead><tbody id="adminReceiptTableBody"></tbody></table></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading"><div><h2>จัดการรายการชำระคืน</h2></div></div>
+        <div class="table-wrap"><table><thead><tr><th>วันที่</th><th>ผู้โอน</th><th>ผู้รับ</th><th class="text-right">จำนวนเงิน</th><th class="text-right">จัดการ</th></tr></thead><tbody id="adminSettlementTableBody"></tbody></table></div>
+      </section>
+    </main>
+  </div>
+
+  <template id="adminPayerRowTemplate"><div class="dynamic-row payer-row"><label class="field"><span>ผู้จ่าย</span><select class="payer-person" required></select></label><label class="field"><span>จำนวนเงิน</span><input class="payer-amount" type="number" min="0.01" step="0.01" required></label><button class="btn btn-danger remove-row-btn" type="button">ลบ</button></div></template>
+  <template id="adminLineTemplate">
+    <article class="expense-line-card">
+      <div class="expense-line-top"><strong class="line-number">รายการ</strong><button class="btn btn-danger remove-line-btn" type="button">ลบรายการ</button></div>
+      <div class="field-row"><label class="field"><span>รายละเอียด</span><input class="line-description" type="text" required></label><label class="field"><span>หมวด</span><select class="line-category"><option value="food">ค่าอาหาร</option><option value="beverage">เครื่องดื่ม</option><option value="alcohol">แอลกอฮอล์</option><option value="lodging">ที่พัก</option><option value="activity">กิจกรรม</option><option value="transport">การเดินทาง</option><option value="shared">ของใช้ส่วนกลาง</option><option value="other">อื่น ๆ</option></select></label></div>
+      <div class="field-row"><label class="field"><span>จำนวนเงิน</span><input class="line-amount" type="number" min="0.01" step="0.01" required></label><label class="field"><span>วิธีหาร</span><select class="line-split-mode"><option value="attendance_date">ผู้ที่มาในวันนั้น</option><option value="lodging_night">ผู้ที่พักคืนนั้น</option><option value="selected_equal">เลือกคนหารเท่ากัน</option><option value="person_days">ตามคน-วัน</option><option value="weighted">ตามหน่วย/น้ำหนัก</option><option value="manual">ระบุยอดต่อคน</option><option value="all_equal">ทุกคนเท่ากัน</option></select></label></div>
+      <label class="field line-service-date-field hidden"><span>คืนที่พัก/วันที่อ้างอิง</span><input class="line-service-date" type="date"></label>
+      <fieldset class="choice-fieldset"><legend>ผู้ร่วมรับผิดชอบ</legend><div class="line-participant-options participant-share-grid"></div></fieldset>
+      <div class="line-preview"></div>
+    </article>
+  </template>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="config.js"></script>
+  <script src="admin.js"></script>
+  <script src="ui-enhancements.js"></script>
+</body>
+</html>
