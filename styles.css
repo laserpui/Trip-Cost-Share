@@ -258,3 +258,28 @@ th { color:var(--muted); font-size:.78rem; background:#fafbfc; font-weight:800; 
   flex:0 0 auto;
   accent-color:#4f46e5;
 }
+
+/* v6.2 — compact UI: hide non-essential explanatory copy */
+.topbar-title p,
+.hero-card p,
+.panel-head p,
+.page-intro p,
+.builder-head p,
+.action-card small,
+.sidebar-footer small,
+.switch-row small,
+#payerModeHint,
+#receiptImageHint,
+.line-hint,
+.admin-login p,
+.module-card small {
+  display: none !important;
+}
+
+.reset-trip-panel {
+  border-color: rgba(220, 38, 38, 0.16);
+}
+.reset-trip-head {
+  margin-bottom: 0;
+  align-items: center;
+}
