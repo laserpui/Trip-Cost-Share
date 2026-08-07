@@ -3,167 +3,179 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#E5FFFF">
-  <meta name="description" content="ระบบจัดการผู้ร่วมกิจกรรม ค่าใช้จ่าย และสรุปยอดรายบุคคล">
-  <title>Trip Cost Share v5.8</title>
+  <meta name="theme-color" content="#eefcff">
+  <meta name="description" content="ระบบบันทึกผู้ร่วมกิจกรรมและแบ่งค่าใช้จ่าย">
+  <title>Trip Cost Share</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app-shell saas-layout">
-    <aside id="appSidebar" class="app-sidebar" aria-label="เมนูหลัก">
-      <div class="sidebar-brand">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z"/><path d="M8 8h8M8 12h5M8 16h3"/><circle cx="17" cy="16" r="2.5"/></svg>
-        </span>
-        <div><p>ACTIVITY MANAGER</p><strong id="appTitle">Trip Cost Share</strong></div>
+  <div class="app-layout">
+    <aside id="appSidebar" class="sidebar" aria-label="เมนูหลัก">
+      <div class="brand">
+        <span class="brand-icon">฿</span>
+        <div><small>ACTIVITY EXPENSE</small><strong id="appTitle">Trip Cost Share</strong></div>
       </div>
 
-      <div class="sidebar-event-card">
-        <span class="sidebar-event-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18"/></svg></span>
-        <div><small>กิจกรรมปัจจุบัน</small><strong id="eventDateLabel">กำลังโหลดข้อมูลกิจกรรม</strong></div>
+      <div class="event-mini-card">
+        <small>กิจกรรมปัจจุบัน</small>
+        <strong id="eventDateLabel">กำลังโหลด...</strong>
       </div>
 
-      <nav class="app-nav">
-        <button class="app-nav-link active" type="button" data-page-target="dashboard">
-          <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span>แดชบอร์ด</span>
-        </button>
-        <button class="app-nav-link" type="button" data-page-target="participants">
-          <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3"/><path d="M3.5 20c.5-4 2.4-6 5.5-6s5 2 5.5 6M18 8v6M15 11h6"/></svg><span>ผู้ร่วมกิจกรรม</span>
-        </button>
-        <button class="app-nav-link" type="button" data-page-target="expenses">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span>บันทึกค่าใช้จ่าย</span>
-        </button>
-        <a class="app-nav-link" href="admin.html">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 4.5 6v5.4c0 4.8 3.2 8.2 7.5 9.6 4.3-1.4 7.5-4.8 7.5-9.6V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Admin</span>
-        </a>
+      <nav class="nav-list">
+        <button class="nav-item active" type="button" data-page-target="dashboard"><span class="nav-symbol">▦</span><span>แดชบอร์ด</span></button>
+        <button class="nav-item" type="button" data-page-target="participants"><span class="nav-symbol">＋</span><span>ผู้ร่วมกิจกรรม</span></button>
+        <button class="nav-item" type="button" data-page-target="expenses"><span class="nav-symbol">฿</span><span>บันทึกค่าใช้จ่าย</span></button>
+        <a class="nav-item" href="admin.html"><span class="nav-symbol">⚙</span><span>Admin</span></a>
       </nav>
 
-      <div class="sidebar-bottom">
-        <span id="connectionBadge" class="badge badge-warning">กำลังตรวจสอบระบบ</span>
-        <p>ระบบแบ่งค่าใช้จ่ายตามผู้รับผิดชอบจริง</p>
+      <div class="sidebar-footer">
+        <span id="connectionBadge" class="status-badge warning">กำลังเชื่อมต่อ</span>
+        <small>Clean Core v6</small>
       </div>
     </aside>
 
     <button id="sidebarOverlay" class="sidebar-overlay" type="button" aria-label="ปิดเมนู"></button>
 
-    <div class="app-workspace">
-      <header class="workspace-header">
-        <div class="workspace-title-group">
-          <button id="mobileMenuBtn" class="icon-button mobile-menu-button" type="button" aria-label="เปิดเมนู"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-title">
+          <button id="mobileMenuBtn" class="icon-btn mobile-only" type="button" aria-label="เปิดเมนู">☰</button>
           <div>
-            <p id="currentPageKicker" class="page-kicker">OVERVIEW</p>
+            <small id="currentPageKicker">OVERVIEW</small>
             <h1 id="currentPageTitle">แดชบอร์ด</h1>
-            <p id="currentPageDescription" class="subtitle">ภาพรวมกิจกรรม ค่าใช้จ่าย และยอดสุทธิ</p>
+            <p id="currentPageDescription">ภาพรวมกิจกรรมและค่าใช้จ่าย</p>
           </div>
         </div>
-        <div class="workspace-actions">
-          <button id="refreshBtn" class="btn btn-secondary" type="button">รีเฟรชข้อมูล</button>
-          <a class="btn btn-primary desktop-admin-button" href="admin.html">เข้าสู่ Admin</a>
+        <div class="topbar-actions">
+          <button id="refreshBtn" class="btn secondary" type="button">รีเฟรชข้อมูล</button>
+          <a class="btn primary desktop-only" href="admin.html">เข้าสู่ Admin</a>
         </div>
       </header>
 
-      <div id="demoBanner" class="notice hidden"><strong>โหมดทดลอง:</strong> ข้อมูลจะเก็บในเบราว์เซอร์เครื่องนี้จนกว่าจะใส่ Google Apps Script URL ใน config.js</div>
+      <div id="demoBanner" class="notice hidden"><strong>โหมดทดลอง:</strong> ข้อมูลจะเก็บในเบราว์เซอร์เครื่องนี้</div>
 
-      <main class="page-stack">
-        <!-- Dashboard -->
+      <main class="page-container">
         <section class="app-page active" data-page="dashboard">
-          <div class="dashboard-welcome panel">
-            <div><span class="section-badge">LIVE OVERVIEW</span><h2>ภาพรวมค่าใช้จ่ายของกิจกรรม</h2><p>ตรวจสอบผู้ร่วมกิจกรรม ค่าใช้จ่าย ค่าที่พัก และยอดที่แต่ละคนควรชำระหรือได้รับคืน</p></div>
-            <div class="quick-action-row">
-              <button class="quick-action-button" type="button" data-page-target="participants"><span class="quick-action-icon"><svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3"/><path d="M3.5 20c.5-4 2.4-6 5.5-6s5 2 5.5 6M18 8v6M15 11h6"/></svg></span><span><strong>เพิ่มผู้เข้าร่วม</strong><small>บันทึกชื่อ วันที่เข้าร่วม และคืนที่พัก</small></span></button>
-              <button class="quick-action-button" type="button" data-page-target="expenses"><span class="quick-action-icon expense"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></span><span><strong>เพิ่มค่าใช้จ่าย</strong><small>แนบใบเสร็จและกำหนดวิธีหาร</small></span></button>
+          <section class="hero-card">
+            <div><span class="eyebrow">LIVE OVERVIEW</span><h2>ภาพรวมค่าใช้จ่ายของกิจกรรม</h2><p>ตรวจสอบยอดรวม ผู้ร่วมกิจกรรม และยอดสุทธิรายบุคคลจากข้อมูลล่าสุด</p></div>
+            <div class="hero-actions">
+              <button class="action-card" type="button" data-page-target="participants"><strong>เพิ่มผู้ร่วมกิจกรรม</strong><small>ชื่อ วันที่เข้าร่วม และคืนพัก</small></button>
+              <button class="action-card" type="button" data-page-target="expenses"><strong>เพิ่มค่าใช้จ่าย</strong><small>ใบเสร็จ ผู้จ่าย และวิธีหาร</small></button>
             </div>
-          </div>
-
-          <section class="summary-grid" aria-label="สรุปค่าใช้จ่าย">
-            <article class="summary-card"><span>ผู้ร่วมกิจกรรม</span><strong id="participantCount">0</strong><small id="attendanceUnitCount">รวม 0 คน-วัน</small></article>
-            <article class="summary-card"><span>ค่าใช้จ่ายทั้งหมด</span><strong id="grandTotal">฿0.00</strong><small id="receiptCount">0 ใบเสร็จ</small></article>
-            <article class="summary-card"><span>ค่าใช้จ่ายที่พัก</span><strong id="lodgingExpenseTotal">฿0.00</strong><small id="lodgingExpenseCount">0 รายการ</small></article>
-            <article class="summary-card accent-card"><span>ยอดที่ต้องเคลียร์</span><strong id="openBalance">฿0.00</strong><small>ยอดรวมฝั่งที่ต้องจ่ายเพิ่ม</small></article>
           </section>
 
-          <section id="summaryShareSection" class="panel share-section">
-            <div class="panel-heading toolbar-heading"><div><h2>สรุปยอดรายบุคคล</h2><p>คำนวณจากยอดรับผิดชอบเทียบกับเงินที่แต่ละคนสำรองจ่าย</p></div><button id="shareSummaryBtn" class="btn btn-secondary" type="button" data-html2canvas-ignore="true">แชร์เป็นรูป</button></div>
-            <div class="share-header"><strong id="summaryShareTitle">Trip Cost Share</strong><span id="summaryShareSubtitle"></span></div>
-            <div id="integrityBox" class="warning-box hidden"></div>
-            <div class="table-wrap"><table><thead><tr><th>ชื่อ</th><th class="text-right">รับผิดชอบ</th><th class="text-right">สำรองจ่าย</th><th class="text-right">ยอดสุทธิ</th></tr></thead><tbody id="personSummaryBody"><tr><td colspan="4" class="table-empty">ยังไม่มีข้อมูล</td></tr></tbody></table></div>
+          <section class="metric-grid">
+            <article class="metric-card"><span>ผู้ร่วมกิจกรรม</span><strong id="participantCount">0</strong><small id="attendanceUnitCount">0 คน-วัน</small></article>
+            <article class="metric-card"><span>ค่าใช้จ่ายทั้งหมด</span><strong id="grandTotal">฿0.00</strong><small id="receiptCount">0 ใบเสร็จ</small></article>
+            <article class="metric-card"><span>ค่าที่พัก</span><strong id="lodgingExpenseTotal">฿0.00</strong><small id="lodgingExpenseCount">0 รายการ</small></article>
+            <article class="metric-card accent"><span>ยอดที่ต้องเคลียร์</span><strong id="openBalance">฿0.00</strong><small>ยอดรวมฝั่งที่ต้องจ่ายเพิ่ม</small></article>
+          </section>
+
+          <section id="summaryShareSection" class="panel">
+            <div class="panel-head"><div><h2>สรุปยอดรายบุคคล</h2><p>เทียบยอดที่ต้องรับผิดชอบกับยอดที่สำรองจ่าย</p></div><button id="shareSummaryBtn" class="btn secondary" type="button">แชร์เป็นรูป</button></div>
+            <div class="share-title"><strong id="summaryShareTitle">Trip Cost Share</strong><span id="summaryShareSubtitle"></span></div>
+            <div id="integrityBox" class="notice danger hidden"></div>
+            <div class="table-wrap"><table><thead><tr><th>ชื่อ</th><th class="right">รับผิดชอบ</th><th class="right">สำรองจ่าย</th><th class="right">ยอดสุทธิ</th></tr></thead><tbody id="personSummaryBody"><tr><td colspan="4" class="empty-cell">ยังไม่มีข้อมูล</td></tr></tbody></table></div>
           </section>
 
           <section class="panel">
-            <div class="panel-heading"><div><h2>คำแนะนำการโอนเพื่อปิดยอด</h2><p>เป็นคำแนะนำจากยอดสุทธิเท่านั้น ระบบจะไม่บันทึกประวัติการโอนเงิน</p></div></div>
-            <div class="table-wrap"><table><thead><tr><th>ผู้ควรโอน</th><th>ผู้ควรรับ</th><th class="text-right">จำนวนเงิน</th></tr></thead><tbody id="transferRecommendationBody"><tr><td colspan="3" class="table-empty">ยังไม่มีคำแนะนำ</td></tr></tbody></table></div>
+            <div class="panel-head"><div><h2>คำแนะนำการโอนเพื่อปิดยอด</h2><p>เป็นผลคำนวณเท่านั้น ระบบจะไม่บันทึกประวัติการโอน</p></div></div>
+            <div class="table-wrap"><table><thead><tr><th>ผู้ควรโอน</th><th>ผู้ควรรับ</th><th class="right">จำนวนเงิน</th></tr></thead><tbody id="transferRecommendationBody"><tr><td colspan="3" class="empty-cell">ยังไม่มีคำแนะนำ</td></tr></tbody></table></div>
           </section>
         </section>
 
-        <!-- Participants -->
         <section class="app-page" data-page="participants">
-          <div class="page-intro-card panel"><div class="page-intro-icon"><svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3"/><path d="M3.5 20c.5-4 2.4-6 5.5-6s5 2 5.5 6M18 8v6M15 11h6"/></svg></div><div><span class="section-badge">PARTICIPANTS</span><h2>บันทึกผู้ร่วมกิจกรรม</h2><p>เพิ่มชื่อ วันที่เข้าร่วม คืนที่พัก และสถานะผู้ดื่มในหน้าเดียว</p></div></div>
-          <div class="content-grid content-grid-participant">
-            <article class="panel form-panel">
-              <div class="panel-heading"><div><h2>เพิ่มผู้ร่วมกิจกรรม</h2><p>กำหนดวันที่เข้าร่วมและคืนที่พักได้ทันทีเหมือนเวอร์ชันก่อนหน้า</p></div></div>
+          <section class="page-intro"><div><span class="eyebrow">PARTICIPANTS</span><h2>บันทึกผู้ร่วมกิจกรรม</h2><p>เพิ่มข้อมูลที่จำเป็นในหน้าเดียว ไม่ต้องแยกไปหน้าที่พัก</p></div></section>
+
+          <div class="two-column">
+            <section class="panel">
+              <div class="panel-head"><div><h2>เพิ่มผู้ร่วมกิจกรรม</h2><p>เลือกวันที่เข้าร่วมและคืนที่พักตามจริง</p></div></div>
               <form id="participantForm" class="form-grid">
                 <label class="field"><span>ชื่อผู้ร่วมกิจกรรม</span><input id="participantName" type="text" maxlength="80" placeholder="เช่น ปุ๋ย" required></label>
-                <fieldset class="choice-fieldset attendance-fieldset"><legend>วันที่เข้าร่วม</legend><div id="attendanceDateOptions" class="checkbox-grid"></div></fieldset>
-                <fieldset class="choice-fieldset lodging-fieldset"><legend>คืนที่เข้าพัก</legend><div id="lodgingNightOptions" class="checkbox-grid"></div></fieldset>
-                <label class="switch-field standalone-switch"><input id="drinksAlcohol" type="checkbox"><span class="switch"></span><span>ปกติดื่มแอลกอฮอล์</span></label>
-                <button id="saveParticipantBtn" class="btn btn-primary btn-wide" type="submit">บันทึกผู้ร่วมกิจกรรม</button>
+                <fieldset class="choice-box"><legend>วันที่เข้าร่วม</legend><div id="attendanceDateOptions" class="choice-grid"></div></fieldset>
+                <fieldset class="choice-box"><legend>คืนที่เข้าพัก</legend><div id="lodgingNightOptions" class="choice-grid"></div></fieldset>
+                <button id="saveParticipantBtn" class="btn primary wide" type="submit">บันทึกผู้ร่วมกิจกรรม</button>
               </form>
-            </article>
-            <article class="panel participant-directory-panel"><div class="panel-heading"><div><h2>รายชื่อผู้ร่วมกิจกรรม</h2><p>ข้อมูลล่าสุดที่บันทึกในกิจกรรมนี้</p></div></div><div id="participantList" class="participant-list empty-state">ยังไม่มีรายชื่อ</div></article>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head"><div><h2>รายชื่อผู้ร่วมกิจกรรม</h2><p>รายการล่าสุดในกิจกรรมนี้</p></div></div>
+              <div id="participantList" class="participant-list empty-state">ยังไม่มีรายชื่อ</div>
+            </section>
           </div>
         </section>
 
-        <!-- Expenses -->
         <section class="app-page" data-page="expenses">
-          <div class="page-intro-card panel expense-intro"><div class="page-intro-icon expense"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></div><div><span class="section-badge">EXPENSE WORKSPACE</span><h2>บันทึกค่าใช้จ่ายและใบเสร็จ</h2><p>หนึ่งใบเสร็จสามารถแยกหลายรายการและใช้วิธีหารต่างกันได้</p></div></div>
+          <section class="page-intro"><div><span class="eyebrow">EXPENSES</span><h2>บันทึกค่าใช้จ่าย</h2><p>หนึ่งใบเสร็จสามารถมีหลายรายการย่อยและหลายวิธีหาร</p></div></section>
 
-          <article class="panel receipt-builder-panel">
-            <div class="panel-heading"><div><h2>บันทึกใบเสร็จ</h2><p>กรอกยอดใบเสร็จเพียงครั้งเดียว หากมีผู้จ่ายคนเดียวระบบจะใช้ยอดนั้นอัตโนมัติ</p></div><span class="status-chip">Draft</span></div>
+          <section class="panel">
+            <div class="panel-head"><div><h2>บันทึกใบเสร็จ</h2><p>กรอกยอดรวมครั้งเดียว ระบบจะใช้ยอดเดียวกันอัตโนมัติเมื่อมีผู้จ่ายหรือรายการย่อยเพียงหนึ่งรายการ</p></div><span class="draft-pill">Draft</span></div>
             <form id="receiptForm" class="form-grid">
-              <div class="field-row"><label class="field"><span>วันที่ใบเสร็จ</span><input id="receiptDate" type="date" required></label><label class="field"><span>ร้านค้า/ผู้ให้บริการ</span><input id="receiptMerchant" type="text" maxlength="120" placeholder="เช่น ร้านอาหาร ABC" required></label></div>
-              <div class="field-row"><label class="field"><span>ยอดรวมใบเสร็จ (บาท)</span><input id="receiptTotal" type="number" min="0.01" step="0.01" placeholder="0.00" required></label><label class="field"><span>แนบรูปใบเสร็จ</span><input id="receiptImage" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></label></div>
-              <label class="field"><span>หมายเหตุใบเสร็จ</span><input id="receiptNote" type="text" maxlength="180" placeholder="ไม่บังคับ"></label>
+              <div class="form-row">
+                <label class="field"><span>วันที่ใบเสร็จ</span><input id="receiptDate" type="date" required></label>
+                <label class="field"><span>ร้านค้า/ผู้ให้บริการ</span><input id="receiptMerchant" type="text" maxlength="120" placeholder="เช่น บ้านพัก" required></label>
+              </div>
+              <div class="form-row">
+                <label class="field"><span>ยอดรวมใบเสร็จ (บาท)</span><input id="receiptTotal" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
+                <label class="field"><span>แนบรูปใบเสร็จ</span><input id="receiptImage" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"><small id="receiptImageHint" class="field-hint">ไม่บังคับ</small></label>
+              </div>
+              <label class="field"><span>หมายเหตุ</span><input id="receiptNote" type="text" maxlength="180" placeholder="ไม่บังคับ"></label>
 
-              <div id="payerBuilderBlock" class="payer-inline-block single-payer-mode"><div class="builder-heading"><div><h3>ผู้ชำระเงิน</h3><p id="payerModeHint">เลือกชื่อผู้จ่าย ระบบจะใช้ยอดรวมใบเสร็จให้อัตโนมัติ</p></div><button id="addPayerBtn" class="btn btn-secondary" type="button">มีผู้จ่ายหลายคน</button></div><div id="payerRows" class="dynamic-list"></div><div class="builder-total-row payer-total-row"><span>รวมผู้สำรองจ่าย</span><strong id="payerContributionTotal">฿0.00</strong></div></div>
+              <section id="payerBuilderBlock" class="builder-block single-mode">
+                <div class="builder-head"><div><h3>ผู้สำรองจ่าย</h3><p id="payerModeHint">เลือกผู้จ่าย 1 คน ระบบใช้ยอดรวมใบเสร็จอัตโนมัติ</p></div><button id="addPayerBtn" class="btn secondary" type="button">มีผู้จ่ายหลายคน</button></div>
+                <div id="payerRows" class="dynamic-list"></div>
+                <div class="builder-total"><span>รวมผู้สำรองจ่าย</span><strong id="payerContributionTotal">฿0.00</strong></div>
+              </section>
 
-              <section class="builder-block"><div class="builder-heading"><div><h3>รายการย่อยในใบเสร็จ</h3><p>กำหนดหมวด วิธีหาร และผู้ร่วมรับผิดชอบของแต่ละรายการ</p></div><button id="addLineBtn" class="btn btn-secondary" type="button">เพิ่มรายการย่อย</button></div><div id="expenseLineRows" class="dynamic-list expense-lines"></div><div class="builder-total-row"><span>รวมรายการย่อย</span><strong id="lineTotal">฿0.00</strong></div></section>
+              <section id="lineBuilderBlock" class="builder-block single-mode">
+                <div class="builder-head"><div><h3>รายการย่อย</h3><p>ถ้ามีรายการเดียว ระบบใช้ยอดรวมใบเสร็จอัตโนมัติ</p></div><button id="addLineBtn" class="btn secondary" type="button">เพิ่มรายการย่อย</button></div>
+                <div id="expenseLineRows" class="dynamic-list"></div>
+                <div class="builder-total"><span>รวมรายการย่อย</span><strong id="lineTotal">฿0.00</strong></div>
+              </section>
 
-              <div id="receiptValidation" class="warning-box hidden"></div>
-              <div class="form-actions"><button id="previewReceiptBtn" class="btn btn-secondary" type="button">ตรวจสอบการหาร</button><button id="receiptSubmitBtn" class="btn btn-primary" type="submit">ยืนยันบันทึกใบเสร็จ</button></div>
+              <div id="receiptValidation" class="notice danger hidden"></div>
+              <div class="form-actions"><button id="previewReceiptBtn" class="btn secondary" type="button">ตรวจสอบการหาร</button><button id="receiptSubmitBtn" class="btn primary" type="submit">บันทึกค่าใช้จ่าย</button></div>
             </form>
-          </article>
+          </section>
 
-          <section id="previewSection" class="panel hidden"><div class="panel-heading"><div><h2>ตัวอย่างยอดก่อนบันทึก</h2><p>ตรวจสอบรายชื่อและยอดของแต่ละคนก่อนยืนยัน</p></div></div><div id="previewContent"></div></section>
+          <section id="previewSection" class="panel hidden"><div class="panel-head"><div><h2>ตัวอย่างก่อนบันทึก</h2><p>ตรวจสอบยอดรายบุคคลก่อนยืนยัน</p></div></div><div id="previewContent"></div></section>
 
-          <section id="receiptShareSection" class="panel share-section"><div class="panel-heading toolbar-heading"><div><h2>ใบเสร็จและรายการค่าใช้จ่าย</h2><p>แสดงรายการย่อย ผู้สำรองจ่าย และวิธีหารที่บันทึกไว้</p></div><div class="toolbar-actions" data-html2canvas-ignore="true"><button id="shareReceiptsBtn" class="btn btn-secondary" type="button">แชร์เป็นรูป</button></div></div><div class="share-header"><strong id="receiptShareTitle">Trip Cost Share</strong><span id="receiptShareSubtitle"></span></div><div id="receiptCards" class="receipt-card-list empty-state">ยังไม่มีใบเสร็จ</div></section>
+          <section id="receiptShareSection" class="panel">
+            <div class="panel-head"><div><h2>รายการค่าใช้จ่าย</h2><p>ใบเสร็จและรายการย่อยที่บันทึกแล้ว</p></div><button id="shareReceiptsBtn" class="btn secondary" type="button">แชร์เป็นรูป</button></div>
+            <div class="share-title"><strong id="receiptShareTitle">Trip Cost Share</strong><span id="receiptShareSubtitle"></span></div>
+            <div id="receiptCards" class="receipt-list empty-state">ยังไม่มีใบเสร็จ</div>
+          </section>
         </section>
       </main>
 
-      <footer class="workspace-footer"><span>ผลการแบ่งแต่ละรายการถูกบันทึกเป็น ExpenseShares เพื่อป้องกันยอดเปลี่ยนย้อนหลัง</span><span id="lastUpdated">ยังไม่มีการอัปเดต</span></footer>
+      <footer class="footer"><span>ระบบบันทึกผลการหารรายรายการเพื่อป้องกันยอดเปลี่ยนย้อนหลัง</span><span id="lastUpdated">ยังไม่มีการอัปเดต</span></footer>
     </div>
   </div>
 
   <template id="payerRowTemplate">
-    <div class="dynamic-row payer-row"><label class="field"><span>ผู้จ่าย</span><select class="payer-person" required></select></label><label class="field"><span>จำนวนเงิน</span><input class="payer-amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></label><button class="btn btn-danger remove-row-btn" type="button">ลบ</button></div>
+    <div class="payer-row dynamic-row">
+      <label class="field grow"><span>ผู้จ่าย</span><select class="payer-person" required></select></label>
+      <label class="field payer-amount-field"><span>จำนวนเงิน</span><input class="payer-amount" type="number" min="0.01" step="0.01" placeholder="0.00"></label>
+      <button class="btn danger remove-row-btn" type="button">ลบ</button>
+    </div>
   </template>
 
   <template id="expenseLineTemplate">
-    <article class="expense-line-card">
-      <div class="expense-line-top"><strong class="line-number">รายการที่ 1</strong><button class="btn btn-danger remove-line-btn" type="button">ลบรายการ</button></div>
-      <div class="field-row"><label class="field"><span>รายละเอียด</span><input class="line-description" type="text" maxlength="120" required></label><label class="field"><span>หมวด</span><select class="line-category" required><option value="food">ค่าอาหาร</option><option value="beverage">เครื่องดื่ม</option><option value="alcohol">เครื่องดื่มแอลกอฮอล์</option><option value="lodging">ที่พัก</option><option value="activity">กิจกรรม</option><option value="transport">การเดินทาง</option><option value="shared">ของใช้ส่วนกลาง</option><option value="other">อื่น ๆ</option></select></label></div>
-      <div class="field-row"><label class="field"><span>จำนวนเงิน</span><input class="line-amount" type="number" min="0.01" step="0.01" required></label><label class="field"><span>วิธีหาร</span><select class="line-split-mode" required><option value="attendance_date">ผู้ที่มาในวันที่ใบเสร็จ</option><option value="lodging_night">ผู้ที่พักในคืนที่เลือก</option><option value="selected_equal">เลือกคนแล้วหารเท่ากัน</option><option value="person_days">ตามจำนวนคน-วัน</option><option value="weighted">ตามหน่วย/น้ำหนัก</option><option value="manual">ระบุยอดต่อคน</option><option value="all_equal">ทุกคนเท่ากัน</option></select></label></div>
-      <label class="field line-service-date-field hidden"><span>คืนที่พัก/วันที่อ้างอิง</span><input class="line-service-date" type="date"></label>
-      <div class="line-hint field-hint"></div>
-      <fieldset class="choice-fieldset participant-selector-fieldset"><legend>ผู้ร่วมรับผิดชอบและสัดส่วน</legend><div class="line-participant-options participant-share-grid"></div></fieldset>
+    <article class="line-card">
+      <div class="line-card-head"><strong class="line-number">รายการที่ 1</strong><button class="btn danger remove-line-btn" type="button">ลบรายการ</button></div>
+      <div class="form-row"><label class="field"><span>รายละเอียด</span><input class="line-description" type="text" maxlength="120" required></label><label class="field"><span>หมวด</span><select class="line-category" required><option value="food">ค่าอาหาร</option><option value="beverage">เครื่องดื่ม</option><option value="lodging">ที่พัก</option><option value="activity">กิจกรรม</option><option value="transport">การเดินทาง</option><option value="shared">ของใช้ส่วนกลาง</option><option value="other">อื่น ๆ</option></select></label></div>
+      <div class="form-row"><label class="field line-amount-field"><span>จำนวนเงิน</span><input class="line-amount" type="number" min="0.01" step="0.01"></label><label class="field"><span>วิธีหาร</span><select class="line-split-mode"><option value="attendance_date">ผู้ที่มาในวันนั้น</option><option value="lodging_night">ผู้ที่พักในคืนที่เลือก</option><option value="selected_equal">เลือกคนหารเท่ากัน</option><option value="person_days">ตามคน-วัน</option><option value="weighted">ตามหน่วย/น้ำหนัก</option><option value="manual">ระบุยอดต่อคน</option><option value="all_equal">ทุกคนเท่ากัน</option></select></label></div>
+      <label class="field line-service-date-field hidden"><span>คืนที่พักอ้างอิง</span><input class="line-service-date" type="date"></label>
+      <p class="line-hint field-hint"></p>
+      <fieldset class="choice-box"><legend>ผู้ร่วมรับผิดชอบ</legend><div class="line-participant-options participant-share-grid"></div></fieldset>
       <div class="line-preview"></div>
     </article>
   </template>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script async src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script src="navigation.js"></script>
