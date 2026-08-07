@@ -3,9 +3,8 @@
 
   const publicMeta = {
     dashboard: { kicker: "OVERVIEW", title: "แดชบอร์ด", description: "ภาพรวมกิจกรรม ค่าใช้จ่าย และยอดสุทธิ" },
-    participants: { kicker: "PARTICIPANTS", title: "บันทึกผู้ร่วมกิจกรรม", description: "เพิ่มรายชื่อและกำหนดวันที่เข้าร่วมกิจกรรม" },
-    expenses: { kicker: "EXPENSES", title: "บันทึกค่าใช้จ่าย", description: "บันทึกใบเสร็จ ผู้สำรองจ่าย และตรวจสอบการหาร" },
-    lodging: { kicker: "LODGING", title: "บันทึกข้อมูลที่พัก", description: "กำหนดคืนที่พักจริงของผู้ร่วมกิจกรรมที่บันทึกไว้" }
+    participants: { kicker: "PARTICIPANTS", title: "บันทึกผู้ร่วมกิจกรรม", description: "เพิ่มรายชื่อ วันที่เข้าร่วม คืนที่พัก และสถานะผู้ดื่ม" },
+    expenses: { kicker: "EXPENSES", title: "บันทึกค่าใช้จ่าย", description: "บันทึกใบเสร็จ ผู้สำรองจ่าย และตรวจสอบการหาร" }
   };
 
   const adminMeta = {
@@ -38,7 +37,7 @@
     if ($("currentPageKicker")) $("currentPageKicker").textContent = m.kicker;
     if ($("currentPageTitle")) $("currentPageTitle").textContent = m.title;
     if ($("currentPageDescription")) $("currentPageDescription").textContent = m.description;
-    document.title = `${m.title} · Trip Cost Share v5.5`;
+    document.title = `${m.title} · Trip Cost Share v5.6.1`;
     if (updateHash && location.hash !== `#${page}`) history.replaceState(null, "", `#${page}`);
     closeSidebar();
     window.scrollTo(0, 0);
