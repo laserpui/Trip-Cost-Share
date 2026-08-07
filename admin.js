@@ -6,6 +6,7 @@
   const IS_DEMO = !/^https:\/\/script\.google\.com\/macros\/s\//.test(API_URL);
   const STORAGE_KEY = "trip-cost-share-v5-demo";
   const TOKEN_KEY = "trip-cost-share-v5-admin-token";
+  const ADMIN_SNAPSHOT_KEY = "trip-cost-share-v5.6-admin-snapshot";
   const EPSILON = 0.011;
   const state = { settings: {}, participants: [], receipts: [], expenseLines: [], expenseShares: [] };
   let adminToken = sessionStorage.getItem(TOKEN_KEY) || "";
@@ -55,7 +56,9 @@
   function activePeople() { return state.participants.filter((p) => p.active !== false); }
   function person(id) { return state.participants.find((p) => p.id === id); }
   function showToast(message) { el.toast.textContent = message; el.toast.classList.add("show"); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => el.toast.classList.remove("show"), 2800); }
-  function setBusy(value) { document.querySelectorAll("button").forEach((button) => { button.disabled = value; }); }
+  function setBusy(value) {
+    document.querySelectorAll("#adminSettingsForm button, #adminParticipantForm button, #adminReceiptForm button, [data-edit-person], [data-delete-person], [data-edit-receipt], [data-delete-receipt]").forEach((button) => { button.disabled = value; });
+  }
   function setBadge(kind, text) { el.badge.className = `badge badge-${kind}`; el.badge.textContent = text; }
   function buildDateRange(start, end) { const cursor = parseIsoDateUtc(start); const stop = parseIsoDateUtc(end); if (!cursor || !stop) return []; const out = []; while (cursor <= stop && out.length < 31) { out.push(isoFromUtcDate(cursor)); cursor.setUTCDate(cursor.getUTCDate() + 1); } return out; }
   function saveDemo() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -74,17 +77,47 @@
     sessionStorage.setItem(TOKEN_KEY, adminToken); showAdmin(); await loadData();
   }
 
-  function logoutLocal() { adminToken = ""; sessionStorage.removeItem(TOKEN_KEY); el.app.classList.add("hidden"); el.loginSection.classList.remove("hidden"); el.refresh.classList.add("hidden"); el.logout.classList.add("hidden"); setBadge("warning", "รอเข้าสู่ระบบ"); }
+  function logoutLocal() { adminToken = ""; sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(ADMIN_SNAPSHOT_KEY); el.app.classList.add("hidden"); el.loginSection.classList.remove("hidden"); el.refresh.classList.add("hidden"); el.logout.classList.add("hidden"); setBadge("warning", "รอเข้าสู่ระบบ"); }
   async function logout() { try { if (!IS_DEMO && adminToken) await apiPost("adminLogout"); } catch (_) {} logoutLocal(); }
   function showAdmin() { el.loginSection.classList.add("hidden"); el.app.classList.remove("hidden"); el.refresh.classList.remove("hidden"); el.logout.classList.remove("hidden"); el.demo.classList.toggle("hidden", !IS_DEMO); setBadge("success", "ADMIN พร้อมใช้งาน"); }
 
-  async function loadData() {
+  function saveAdminSnapshot() {
+    if (IS_DEMO) return;
+    try { sessionStorage.setItem(ADMIN_SNAPSHOT_KEY, JSON.stringify({ savedAt: Date.now(), data: state })); } catch (_) {}
+  }
+
+  function restoreAdminSnapshot() {
+    if (IS_DEMO) return false;
+    try {
+      const raw = sessionStorage.getItem(ADMIN_SNAPSHOT_KEY);
+      if (!raw) return false;
+      const snapshot = JSON.parse(raw);
+      if (!snapshot?.data) return false;
+      Object.assign(state, snapshot.data);
+      normalize();
+      renderAll();
+      setBadge("warning", "กำลังซิงก์ข้อมูล");
+      return true;
+    } catch (_) { return false; }
+  }
+
+  async function loadData(options = {}) {
+    const hadSnapshot = options.allowSnapshot !== false && restoreAdminSnapshot();
+    const forceFresh = options.forceFresh === true;
     setBusy(true);
     try {
-      if (IS_DEMO) loadDemo(); else Object.assign(state, (await apiPost("adminBootstrap")).data);
-      normalize(); renderAll();
-    } catch (error) { showToast(error.message); }
-    finally { setBusy(false); }
+      if (IS_DEMO) loadDemo();
+      else Object.assign(state, (await apiPost("adminBootstrap", { fresh: forceFresh })).data);
+      normalize();
+      renderAll();
+      saveAdminSnapshot();
+      setBadge("success", "ADMIN พร้อมใช้งาน");
+    } catch (error) {
+      if (hadSnapshot) {
+        setBadge("warning", "แสดงข้อมูลล่าสุดในเครื่อง");
+        showToast("ซิงก์ข้อมูลไม่สำเร็จ กำลังแสดงข้อมูลล่าสุดในเครื่อง");
+      } else showToast(error.message);
+    } finally { setBusy(false); }
   }
   function normalize() {
     ["participants", "receipts", "expenseLines", "expenseShares"].forEach((key) => { if (!Array.isArray(state[key])) state[key] = []; });
@@ -185,6 +218,7 @@
       saveDemo(); return;
     }
     Object.assign(state, (await apiPost(action, payload)).data);
+    saveAdminSnapshot();
   }
 
   function renderSettings() { el.eventName.value = state.settings.eventName || ""; el.startDate.value = state.settings.startDate || ""; el.endDate.value = state.settings.endDate || ""; el.eventStatus.value = state.settings.status || "open"; renderDateChecks(); }
@@ -248,7 +282,7 @@
   el.receiptForm.addEventListener("submit", async (event) => { event.preventDefault(); const payload = collectReceipt(); const errors = validateReceipt(payload); el.receiptValidation.classList.toggle("hidden", !errors.length); el.receiptValidation.innerHTML = errors.length ? `<strong>กรุณาตรวจสอบ:</strong><ul>${errors.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""; if (errors.length) return; setBusy(true); try { payload.receiptImage = await imagePayload(el.receiptImage.files[0]); const existing = state.receipts.find((x) => x.id === payload.id); payload.createdAt = existing?.createdAt; await saveAction("adminSaveReceipt", payload); resetReceipt(); renderAll(); showToast("บันทึกใบเสร็จแล้ว"); } catch (e) { showToast(e.message); } finally { setBusy(false); } });
 
   el.addPayer.addEventListener("click", () => addPayerRow()); el.addLine.addEventListener("click", () => addLine()); el.receiptDate.addEventListener("change", () => el.lineRows.querySelectorAll(".expense-line-card").forEach((card) => { const mode = card.querySelector(".line-split-mode").value; if (mode === "attendance_date") renderLinePeople(card); if (mode === "lodging_night") { updateLineUi(card); renderLinePeople(card); } }));
-  el.participantCancel.addEventListener("click", resetParticipant); el.receiptCancel.addEventListener("click", resetReceipt); el.refresh.addEventListener("click", loadData); el.logout.addEventListener("click", logout);
+  el.participantCancel.addEventListener("click", resetParticipant); el.receiptCancel.addEventListener("click", resetReceipt); el.refresh.addEventListener("click", () => loadData({ allowSnapshot: false, forceFresh: true })); el.logout.addEventListener("click", logout);
 
   addPayerRow(); addLine();
   if (adminToken) { showAdmin(); loadData(); }

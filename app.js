@@ -5,6 +5,8 @@
   const API_URL = String(CONFIG.API_URL || "").trim();
   const IS_DEMO = !/^https:\/\/script\.google\.com\/macros\/s\//.test(API_URL);
   const STORAGE_KEY = "trip-cost-share-v5-demo";
+  const SNAPSHOT_KEY = "trip-cost-share-v5.6-snapshot";
+  const SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   const EPSILON = 0.011;
 
   const CATEGORY_LABELS = {
@@ -65,7 +67,8 @@
   function setConnection(kind, label) { el.connectionBadge.className = `badge badge-${kind}`; el.connectionBadge.textContent = label; }
   function setBusy(busy) {
     const closed = String(state.settings?.status || "open") === "closed";
-    document.querySelectorAll("button").forEach((button) => {
+    // Only disable write controls. Navigation, page switching and viewing cached data stay responsive.
+    document.querySelectorAll("#participantForm button, #receiptForm button, #lodgingBulkForm button, .lodging-matrix-panel .btn").forEach((button) => {
       const insideWriteForm = button.closest("#participantForm, #receiptForm, #lodgingBulkForm, .lodging-matrix-panel");
       if (busy) {
         if (!button.disabled) button.dataset.enabledBeforeBusy = "1";
@@ -93,23 +96,74 @@
     state.settings.endDate = normalizeSettingDate(state.settings.endDate);
   }
 
-  async function apiGet(action) {
-    const url = new URL(API_URL); url.searchParams.set("action", action); url.searchParams.set("_", Date.now());
+  function saveSnapshot() {
+    if (IS_DEMO) return;
+    try {
+      localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ savedAt: Date.now(), data: state }));
+    } catch (_) {}
+  }
+
+  function restoreSnapshot() {
+    if (IS_DEMO) return false;
+    try {
+      const raw = localStorage.getItem(SNAPSHOT_KEY);
+      if (!raw) return false;
+      const snapshot = JSON.parse(raw);
+      if (!snapshot?.data || !snapshot.savedAt || Date.now() - Number(snapshot.savedAt) > SNAPSHOT_MAX_AGE_MS) return false;
+      Object.assign(state, snapshot.data);
+      normalizeState();
+      renderAll();
+      el.lastUpdated.textContent = `ข้อมูลล่าสุดในเครื่อง ${new Date(snapshot.savedAt).toLocaleString("th-TH")} · กำลังซิงก์`;
+      return true;
+    } catch (_) { return false; }
+  }
+
+  async function apiGet(action, options = {}) {
+    const url = new URL(API_URL);
+    url.searchParams.set("action", action);
+    if (options.fresh) url.searchParams.set("fresh", "1");
+    url.searchParams.set("_", Date.now());
     const response = await fetch(url.toString(), { method: "GET", redirect: "follow", cache: "no-store" });
-    const result = await response.json(); if (!result.ok) throw new Error(result.message || "อ่านข้อมูลไม่สำเร็จ"); return result;
+    const result = await response.json();
+    if (!result.ok) throw new Error(result.message || "อ่านข้อมูลไม่สำเร็จ");
+    return result;
   }
   async function apiPost(action, payload) {
     const response = await fetch(API_URL, { method: "POST", redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, payload }) });
     const result = await response.json(); if (!result.ok) throw new Error(result.message || "บันทึกข้อมูลไม่สำเร็จ"); return result;
   }
-  async function loadData() {
+  async function loadData(options = {}) {
+    const allowSnapshot = options.allowSnapshot !== false;
+    const forceFresh = options.forceFresh === true;
+    const hadSnapshot = allowSnapshot && restoreSnapshot();
     setBusy(true);
+    if (hadSnapshot) setConnection("warning", "กำลังซิงก์ข้อมูล");
     try {
-      if (IS_DEMO) { loadDemo(); el.demoBanner.classList.remove("hidden"); setConnection("warning", "โหมดทดลอง"); }
-      else { Object.assign(state, (await apiGet("bootstrap")).data); el.demoBanner.classList.add("hidden"); setConnection("success", "เชื่อม Google Sheet แล้ว"); }
-      normalizeState(); renderAll(); el.lastUpdated.textContent = `อัปเดตล่าสุด ${new Date().toLocaleString("th-TH")}`;
-    } catch (error) { console.error(error); setConnection("danger", "เชื่อมต่อไม่สำเร็จ"); showToast(error.message); }
-    finally { setBusy(false); }
+      if (IS_DEMO) {
+        loadDemo();
+        el.demoBanner.classList.remove("hidden");
+        setConnection("warning", "โหมดทดลอง");
+      } else {
+        Object.assign(state, (await apiGet("bootstrap", { fresh: forceFresh })).data);
+        el.demoBanner.classList.add("hidden");
+        setConnection("success", "เชื่อม Google Sheet แล้ว");
+      }
+      normalizeState();
+      renderAll();
+      saveSnapshot();
+      el.lastUpdated.textContent = `อัปเดตล่าสุด ${new Date().toLocaleString("th-TH")}`;
+    } catch (error) {
+      console.error(error);
+      if (hadSnapshot) {
+        setConnection("warning", "แสดงข้อมูลล่าสุดในเครื่อง");
+        showToast("ซิงก์ Google Sheet ไม่สำเร็จ กำลังแสดงข้อมูลล่าสุดในเครื่อง");
+      } else {
+        setConnection("danger", "เชื่อมต่อไม่สำเร็จ");
+        showToast(error.message);
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   function participantOptions(selected = "") { return `<option value="">เลือกรายชื่อ</option>${activeParticipants().map((p) => `<option value="${esc(p.id)}" ${p.id === selected ? "selected" : ""}>${esc(p.name)}</option>`).join("")}`; }
@@ -298,7 +352,7 @@
 
   async function addParticipant(payload) {
     if (IS_DEMO) { state.participants.push({ ...payload, id: uid("p"), lodgingNights: [], active: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); saveDemo(); }
-    else Object.assign(state, (await apiPost("addParticipant", payload)).data);
+    else { Object.assign(state, (await apiPost("addParticipant", payload)).data); saveSnapshot(); }
   }
   async function updateParticipantsLodgingBatch(items) {
     if (IS_DEMO) {
@@ -307,13 +361,13 @@
       return;
     }
     try {
-      Object.assign(state, (await apiPost("updateParticipantsLodgingBatch", { items })).data);
+      Object.assign(state, (await apiPost("updateParticipantsLodgingBatch", { items })).data); saveSnapshot();
     } catch (error) {
       // Backward-compatible fallback for an older Apps Script deployment.
       if (!/Unknown POST action|UNKNOWN_ACTION/i.test(String(error.message || ""))) throw error;
       let lastData = null;
       for (const item of items) lastData = (await apiPost("updateParticipantLodging", item)).data;
-      if (lastData) Object.assign(state, lastData);
+      if (lastData) { Object.assign(state, lastData); saveSnapshot(); }
     }
   }
   async function addReceipt(payload) {
@@ -321,7 +375,7 @@
       const receipt = { ...payload, receiptUrl: payload.receiptImage?.dataBase64 ? `data:${payload.receiptImage.mimeType};base64,${payload.receiptImage.dataBase64}` : "", createdAt: new Date().toISOString() };
       state.receipts.push({ id: receipt.id, date: receipt.date, merchant: receipt.merchant, total: receipt.total, note: receipt.note, payerContributions: receipt.payerContributions, receiptUrl: receipt.receiptUrl, receiptThumbnailUrl: receipt.receiptUrl, createdAt: receipt.createdAt });
       receipt.lines.forEach((line) => { state.expenseLines.push({ ...line, receiptId: receipt.id }); const result = calculateLineShares(line); Object.entries(result.shares).forEach(([participantId, amount]) => state.expenseShares.push({ id: uid("share"), receiptId: receipt.id, lineId: line.id, participantId, amount })); }); saveDemo();
-    } else Object.assign(state, (await apiPost("addReceipt", payload)).data);
+    } else { Object.assign(state, (await apiPost("addReceipt", payload)).data); saveSnapshot(); }
   }
 
   function resetParticipantForm() { el.participantForm.reset(); renderAttendanceOptions(); }
@@ -403,7 +457,7 @@
   el.receiptTotal.addEventListener("input", updateBuilderTotals); el.addPayerBtn.addEventListener("click", () => addPayerRow()); el.addLineBtn.addEventListener("click", () => addExpenseLine()); el.previewReceiptBtn.addEventListener("click", showReceiptPreview);
   el.receiptForm.addEventListener("submit", async (event) => { event.preventDefault(); const receipt = collectReceiptForm(); const errors = validateReceipt(receipt); if (errors.length) { showReceiptPreview(); return showToast("กรุณาแก้ข้อมูลก่อนบันทึก"); } setBusy(true); try { receipt.receiptImage = await fileToReceiptPayload(el.receiptImage.files[0]); await addReceipt(receipt); normalizeState(); renderAll(); resetReceiptForm(); showToast("บันทึกใบเสร็จและผลการหารแล้ว"); } catch (error) { console.error(error); showToast(error.message); } finally { setBusy(false); } });
 
-  el.shareReceiptsBtn.addEventListener("click", () => shareSection("receiptShareSection", "expense-receipts.png")); el.shareSummaryBtn.addEventListener("click", () => shareSection("summaryShareSection", "expense-summary.png")); el.refreshBtn.addEventListener("click", loadData);
+  el.shareReceiptsBtn.addEventListener("click", () => shareSection("receiptShareSection", "expense-receipts.png")); el.shareSummaryBtn.addEventListener("click", () => shareSection("summaryShareSection", "expense-summary.png")); el.refreshBtn.addEventListener("click", () => loadData({ allowSnapshot: false, forceFresh: true }));
 
   addPayerRow(); addExpenseLine(); loadData();
 })();
