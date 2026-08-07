@@ -7,7 +7,7 @@
   const STORAGE_KEY = "trip-cost-share-v5-demo";
   const TOKEN_KEY = "trip-cost-share-v5-admin-token";
   const EPSILON = 0.011;
-  const state = { settings: {}, participants: [], receipts: [], expenseLines: [], expenseShares: [], settlements: [] };
+  const state = { settings: {}, participants: [], receipts: [], expenseLines: [], expenseShares: [] };
   let adminToken = sessionStorage.getItem(TOKEN_KEY) || "";
 
   const $ = (id) => document.getElementById(id);
@@ -17,7 +17,6 @@
     participantCount: $("adminParticipantCount"), receiptCount: $("adminReceiptCount"), grandTotal: $("adminGrandTotal"), statusText: $("adminStatusText"),
     settingsForm: $("adminSettingsForm"), eventName: $("adminEventName"), startDate: $("adminStartDate"), endDate: $("adminEndDate"), eventStatus: $("adminEventStatus"),
     participantForm: $("adminParticipantForm"), participantId: $("adminParticipantId"), participantName: $("adminParticipantName"), attendance: $("adminAttendanceOptions"), lodging: $("adminLodgingOptions"), drinks: $("adminDrinksAlcohol"), active: $("adminParticipantActive"), participantSubmit: $("adminParticipantSubmitBtn"), participantCancel: $("adminParticipantCancelBtn"), participantTable: $("adminParticipantTableBody"),
-    settlementForm: $("adminSettlementForm"), settlementId: $("adminSettlementId"), settlementDate: $("adminSettlementDate"), settlementFrom: $("adminSettlementFrom"), settlementTo: $("adminSettlementTo"), settlementAmount: $("adminSettlementAmount"), settlementNote: $("adminSettlementNote"), settlementSubmit: $("adminSettlementSubmitBtn"), settlementCancel: $("adminSettlementCancelBtn"), settlementTable: $("adminSettlementTableBody"),
     receiptForm: $("adminReceiptForm"), receiptId: $("adminReceiptId"), receiptDate: $("adminReceiptDate"), receiptMerchant: $("adminReceiptMerchant"), receiptTotal: $("adminReceiptTotal"), receiptImage: $("adminReceiptImage"), receiptNote: $("adminReceiptNote"), existingReceipt: $("adminExistingReceipt"), viewReceipt: $("adminViewReceiptBtn"), removeReceipt: $("adminRemoveReceipt"), addPayer: $("adminAddPayerBtn"), payerRows: $("adminPayerRows"), addLine: $("adminAddLineBtn"), lineRows: $("adminLineRows"), receiptValidation: $("adminReceiptValidation"), receiptSubmit: $("adminReceiptSubmitBtn"), receiptCancel: $("adminReceiptCancelBtn"), receiptTable: $("adminReceiptTableBody")
   };
 
@@ -79,7 +78,7 @@
     } catch (error) { showToast(error.message); }
     finally { setBusy(false); }
   }
-  function normalize() { ["participants", "receipts", "expenseLines", "expenseShares", "settlements"].forEach((key) => { if (!Array.isArray(state[key])) state[key] = []; }); state.settings ||= {}; }
+  function normalize() { ["participants", "receipts", "expenseLines", "expenseShares"].forEach((key) => { if (!Array.isArray(state[key])) state[key] = []; }); state.settings ||= {}; }
 
   function options(selected = "", includeInactive = true) {
     const rows = includeInactive ? state.participants : activePeople();
@@ -88,8 +87,8 @@
 
   function renderDateChecks(selectedAttendance = [], selectedLodging = []) {
     const dates = buildDateRange(state.settings.startDate, state.settings.endDate); const nights = dates.slice(0, -1);
-    el.attendance.innerHTML = dates.map((d) => `<label class="check-card"><input type="checkbox" value="${d}" ${selectedAttendance.includes(d) ? "checked" : ""}><span>${dateLabel(d)}</span></label>`).join("");
-    el.lodging.innerHTML = nights.map((d) => `<label class="check-card"><input type="checkbox" value="${d}" ${selectedLodging.includes(d) ? "checked" : ""}><span>คืน ${dateLabel(d)}</span></label>`).join("") || `<span class="field-hint">ไม่มีคืนพัก</span>`;
+    el.attendance.innerHTML = dates.map((d) => `<label class="check-card attendance-card"><input type="checkbox" value="${d}" ${selectedAttendance.includes(d) ? "checked" : ""}><span>${dateLabel(d)}</span></label>`).join("");
+    el.lodging.innerHTML = nights.map((d) => `<label class="check-card lodging-card"><input type="checkbox" value="${d}" ${selectedLodging.includes(d) ? "checked" : ""}><span>คืน ${dateLabel(d)}</span></label>`).join("") || `<span class="field-hint">ไม่มีคืนพัก</span>`;
   }
 
   function largestRemainder(amount, weighted) {
@@ -129,7 +128,15 @@
     container.querySelectorAll(".share-person-check").forEach((check) => { if (mode === "all_equal") check.disabled = true; check.addEventListener("change", () => { const valueInput = container.querySelector(`.share-person-value[data-person-id="${CSS.escape(check.value)}"]`); if (valueInput) valueInput.disabled = !check.checked; refreshLine(card); }); });
     container.querySelectorAll(".share-person-value").forEach((input) => input.addEventListener("input", () => refreshLine(card))); refreshLine(card);
   }
-  function updateLineUi(card) { card.querySelector(".line-service-date-field").classList.toggle("hidden", card.querySelector(".line-split-mode").value !== "lodging_night"); }
+  function updateLineUi(card) {
+    const mode = card.querySelector(".line-split-mode").value;
+    const input = card.querySelector(".line-service-date");
+    const nights = buildDateRange(state.settings.startDate, state.settings.endDate).slice(0, -1);
+    card.querySelector(".line-service-date-field").classList.toggle("hidden", mode !== "lodging_night");
+    input.min = nights[0] || state.settings.startDate || "";
+    input.max = nights.at(-1) || state.settings.startDate || "";
+    if (mode === "lodging_night" && nights.length && !nights.includes(input.value)) input.value = nights.includes(el.receiptDate.value) ? el.receiptDate.value : nights.at(-1);
+  }
   function collectLine(card) { const mode = card.querySelector(".line-split-mode").value; const sel = collectSelection(card); return { id: card.dataset.lineId, description: card.querySelector(".line-description").value.trim(), category: card.querySelector(".line-category").value, amount: Number(card.querySelector(".line-amount").value || 0), splitMode: mode, serviceDate: card.querySelector(".line-service-date").value || el.receiptDate.value, selectedParticipantIds: sel.ids, weights: mode === "weighted" ? sel.values : {}, manualShares: mode === "manual" ? sel.values : {} }; }
   function refreshLine(card) { const line = collectLine(card); const result = calcShares(line); card.querySelector(".line-preview").innerHTML = !line.amount ? "" : result.error ? `<div class="inline-error">${esc(result.error)}</div>` : `<div class="mini-share-list">${Object.entries(result.shares).map(([id, amount]) => `<span>${esc(person(id)?.name || id)} <strong>${money(amount)}</strong></span>`).join("")}</div>`; }
   function renumber() { [...el.lineRows.querySelectorAll(".expense-line-card")].forEach((card, i) => { card.querySelector(".line-number").textContent = `รายการที่ ${i + 1}`; }); }
@@ -151,9 +158,11 @@
     if (IS_DEMO) {
       if (action === "adminUpdateSettings") state.settings = { ...state.settings, ...payload };
       if (action === "adminSaveParticipant") { const i = state.participants.findIndex((x) => x.id === payload.id); const item = { ...payload, id: payload.id || uid("p"), updatedAt: new Date().toISOString(), createdAt: payload.createdAt || new Date().toISOString() }; if (i >= 0) state.participants[i] = item; else state.participants.push(item); }
-      if (action === "adminDeleteParticipant") state.participants = state.participants.filter((x) => x.id !== payload.id);
-      if (action === "adminSaveSettlement") { const i = state.settlements.findIndex((x) => x.id === payload.id); const item = { ...payload, id: payload.id || uid("settle") }; if (i >= 0) state.settlements[i] = item; else state.settlements.push(item); }
-      if (action === "adminDeleteSettlement") state.settlements = state.settlements.filter((x) => x.id !== payload.id);
+      if (action === "adminDeleteParticipant") {
+        const referenced = state.expenseShares.some((x) => x.participantId === payload.id) || state.receipts.some((r) => (r.payerContributions || []).some((x) => x.participantId === payload.id));
+        if (referenced) throw new Error("รายชื่อนี้มีข้อมูลค่าใช้จ่ายอ้างอิงอยู่ กรุณาแก้รายการที่เกี่ยวข้องก่อนลบ");
+        state.participants = state.participants.filter((x) => x.id !== payload.id);
+      }
       if (action === "adminDeleteReceipt") { state.receipts = state.receipts.filter((x) => x.id !== payload.id); state.expenseLines = state.expenseLines.filter((x) => x.receiptId !== payload.id); state.expenseShares = state.expenseShares.filter((x) => x.receiptId !== payload.id); }
       if (action === "adminSaveReceipt") {
         const i = state.receipts.findIndex((x) => x.id === payload.id); const prior = i >= 0 ? state.receipts[i] : {}; const receipt = { ...prior, id: payload.id, date: payload.date, merchant: payload.merchant, total: payload.total, note: payload.note, payerContributions: payload.payerContributions, receiptUrl: payload.receiptImage ? `data:${payload.receiptImage.mimeType};base64,${payload.receiptImage.dataBase64}` : payload.removeReceipt ? "" : prior.receiptUrl || "" };
@@ -170,10 +179,9 @@
   function renderTables() {
     el.participantTable.innerHTML = state.participants.length ? state.participants.map((p) => `<tr><td><strong>${esc(p.name)}</strong></td><td>${(p.attendanceDates || []).map(dateLabel).join(", ")}</td><td>${(p.lodgingNights || []).map((d) => `คืน ${dateLabel(d)}`).join(", ") || "-"}</td><td>${p.active === false ? "ปิดใช้งาน" : p.drinksAlcohol ? "ใช้งาน · ปกติดื่ม" : "ใช้งาน · ไม่ดื่ม"}</td><td class="text-right"><button class="btn btn-secondary" data-edit-person="${esc(p.id)}">แก้ไข</button> <button class="btn btn-danger" data-delete-person="${esc(p.id)}">ลบ</button></td></tr>`).join("") : `<tr><td colspan="5" class="table-empty">ยังไม่มีรายชื่อ</td></tr>`;
     el.receiptTable.innerHTML = state.receipts.length ? state.receipts.map((r) => `<tr><td>${dateLabel(r.date)}</td><td><strong>${esc(r.merchant)}</strong></td><td>${state.expenseLines.filter((l) => l.receiptId === r.id).length}</td><td>${r.receiptUrl ? `<a href="${esc(r.receiptUrl)}" target="_blank" rel="noopener">ดูรูป</a>` : "-"}</td><td class="text-right"><strong>${money(r.total)}</strong></td><td class="text-right"><button class="btn btn-secondary" data-edit-receipt="${esc(r.id)}">แก้ไข</button> <button class="btn btn-danger" data-delete-receipt="${esc(r.id)}">ลบ</button></td></tr>`).join("") : `<tr><td colspan="6" class="table-empty">ยังไม่มีใบเสร็จ</td></tr>`;
-    el.settlementTable.innerHTML = state.settlements.length ? state.settlements.map((s) => `<tr><td>${dateLabel(s.date)}</td><td>${esc(person(s.fromParticipantId)?.name || "-")}</td><td>${esc(person(s.toParticipantId)?.name || "-")}</td><td class="text-right">${money(s.amount)}</td><td class="text-right"><button class="btn btn-secondary" data-edit-settlement="${esc(s.id)}">แก้ไข</button> <button class="btn btn-danger" data-delete-settlement="${esc(s.id)}">ลบ</button></td></tr>`).join("") : `<tr><td colspan="5" class="table-empty">ยังไม่มีรายการ</td></tr>`;
     bindTableActions();
   }
-  function renderSelectors() { el.settlementFrom.innerHTML = options(el.settlementFrom.value); el.settlementTo.innerHTML = options(el.settlementTo.value); el.payerRows.querySelectorAll(".payer-person").forEach((select) => { const current = select.value; select.innerHTML = options(current); }); el.lineRows.querySelectorAll(".expense-line-card").forEach((card) => { const sel = collectSelection(card); renderLinePeople(card, sel.ids.length ? sel.ids : undefined, sel.values); }); }
+  function renderSelectors() { el.payerRows.querySelectorAll(".payer-person").forEach((select) => { const current = select.value; select.innerHTML = options(current); }); el.lineRows.querySelectorAll(".expense-line-card").forEach((card) => { const sel = collectSelection(card); renderLinePeople(card, sel.ids.length ? sel.ids : undefined, sel.values); }); }
   function renderAll() { renderSettings(); renderCards(); renderSelectors(); renderTables(); }
 
   function bindTableActions() {
@@ -181,19 +189,14 @@
     document.querySelectorAll("[data-delete-person]").forEach((b) => b.addEventListener("click", () => deleteParticipant(b.dataset.deletePerson)));
     document.querySelectorAll("[data-edit-receipt]").forEach((b) => b.addEventListener("click", () => editReceipt(b.dataset.editReceipt)));
     document.querySelectorAll("[data-delete-receipt]").forEach((b) => b.addEventListener("click", () => deleteReceipt(b.dataset.deleteReceipt)));
-    document.querySelectorAll("[data-edit-settlement]").forEach((b) => b.addEventListener("click", () => editSettlement(b.dataset.editSettlement)));
-    document.querySelectorAll("[data-delete-settlement]").forEach((b) => b.addEventListener("click", () => deleteSettlement(b.dataset.deleteSettlement)));
   }
-  function editParticipant(id) { const p = person(id); if (!p) return; el.participantId.value = p.id; el.participantName.value = p.name; el.drinks.checked = p.drinksAlcohol; el.active.checked = p.active !== false; renderDateChecks(p.attendanceDates || [], p.lodgingNights || []); el.participantSubmit.textContent = "บันทึกการแก้ไข"; el.participantCancel.classList.remove("hidden"); el.participantForm.scrollIntoView({ behavior: "smooth" }); }
+  function editParticipant(id) { const p = person(id); if (!p) return; el.participantId.value = p.id; el.participantName.value = p.name; el.drinks.checked = p.drinksAlcohol; el.active.checked = p.active !== false; renderDateChecks(p.attendanceDates || [], p.lodgingNights || []); el.participantSubmit.textContent = "บันทึกการแก้ไข"; el.participantCancel.classList.remove("hidden"); el.participantForm.scrollIntoView({ block: "start" }); }
   function resetParticipant() { el.participantForm.reset(); el.participantId.value = ""; el.active.checked = true; renderDateChecks(); el.participantSubmit.textContent = "เพิ่มรายชื่อ"; el.participantCancel.classList.add("hidden"); }
   async function deleteParticipant(id) { if (!confirm("ยืนยันการลบรายชื่อนี้? ระบบจะไม่อนุญาตหากมีค่าใช้จ่ายอ้างอิงอยู่")) return; try { await saveAction("adminDeleteParticipant", { id }); renderAll(); showToast("ลบรายชื่อแล้ว"); } catch (e) { showToast(e.message); } }
 
-  function editSettlement(id) { const s = state.settlements.find((x) => x.id === id); if (!s) return; el.settlementId.value = s.id; el.settlementDate.value = s.date; el.settlementFrom.innerHTML = options(s.fromParticipantId); el.settlementTo.innerHTML = options(s.toParticipantId); el.settlementAmount.value = s.amount; el.settlementNote.value = s.note || ""; el.settlementSubmit.textContent = "บันทึกการแก้ไข"; el.settlementCancel.classList.remove("hidden"); el.settlementForm.scrollIntoView({ behavior: "smooth" }); }
-  function resetSettlement() { el.settlementForm.reset(); el.settlementId.value = ""; el.settlementDate.value = isoToday(); el.settlementFrom.innerHTML = options(); el.settlementTo.innerHTML = options(); el.settlementSubmit.textContent = "เพิ่มรายการโอน"; el.settlementCancel.classList.add("hidden"); }
-  async function deleteSettlement(id) { if (!confirm("ยืนยันการลบรายการโอนนี้?")) return; try { await saveAction("adminDeleteSettlement", { id }); renderAll(); showToast("ลบรายการแล้ว"); } catch (e) { showToast(e.message); } }
 
   function editReceipt(id) {
-    const r = state.receipts.find((x) => x.id === id); if (!r) return; el.receiptId.value = r.id; el.receiptDate.value = r.date; el.receiptMerchant.value = r.merchant; el.receiptTotal.value = r.total; el.receiptNote.value = r.note || ""; el.payerRows.innerHTML = ""; (r.payerContributions || []).forEach(addPayerRow); el.lineRows.innerHTML = ""; state.expenseLines.filter((l) => l.receiptId === id).forEach(addLine); el.existingReceipt.classList.toggle("hidden", !r.receiptUrl); el.viewReceipt.onclick = () => window.open(r.receiptUrl, "_blank", "noopener"); el.removeReceipt.checked = false; el.receiptSubmit.textContent = "บันทึกการแก้ไขใบเสร็จ"; el.receiptCancel.classList.remove("hidden"); el.receiptForm.scrollIntoView({ behavior: "smooth" });
+    const r = state.receipts.find((x) => x.id === id); if (!r) return; el.receiptId.value = r.id; el.receiptDate.value = r.date; el.receiptMerchant.value = r.merchant; el.receiptTotal.value = r.total; el.receiptNote.value = r.note || ""; el.payerRows.innerHTML = ""; (r.payerContributions || []).forEach(addPayerRow); el.lineRows.innerHTML = ""; state.expenseLines.filter((l) => l.receiptId === id).forEach(addLine); el.existingReceipt.classList.toggle("hidden", !r.receiptUrl); el.viewReceipt.onclick = () => window.open(r.receiptUrl, "_blank", "noopener"); el.removeReceipt.checked = false; el.receiptSubmit.textContent = "บันทึกการแก้ไขใบเสร็จ"; el.receiptCancel.classList.remove("hidden"); el.receiptForm.scrollIntoView({ block: "start" });
   }
   function resetReceipt() { el.receiptForm.reset(); el.receiptId.value = ""; el.receiptDate.value = state.settings.startDate || isoToday(); el.payerRows.innerHTML = ""; el.lineRows.innerHTML = ""; addPayerRow(); addLine(); el.existingReceipt.classList.add("hidden"); el.receiptValidation.classList.add("hidden"); el.receiptSubmit.textContent = "บันทึกใบเสร็จ"; el.receiptCancel.classList.add("hidden"); }
   async function deleteReceipt(id) { if (!confirm("ยืนยันการลบใบเสร็จ รายการย่อย ผลการหาร และรูปที่แนบ?")) return; try { await saveAction("adminDeleteReceipt", { id }); renderAll(); showToast("ลบใบเสร็จแล้ว"); } catch (e) { showToast(e.message); } }
@@ -201,12 +204,11 @@
   el.loginForm.addEventListener("submit", async (event) => { event.preventDefault(); setBusy(true); try { await login(el.password.value); el.loginForm.reset(); } catch (e) { showToast(e.message); } finally { setBusy(false); } });
   el.settingsForm.addEventListener("submit", async (event) => { event.preventDefault(); setBusy(true); try { await saveAction("adminUpdateSettings", { eventName: el.eventName.value.trim(), startDate: el.startDate.value, endDate: el.endDate.value, status: el.eventStatus.value }); renderAll(); showToast("บันทึกการตั้งค่าแล้ว"); } catch (e) { showToast(e.message); } finally { setBusy(false); } });
   el.participantForm.addEventListener("submit", async (event) => { event.preventDefault(); const attendanceDates = [...el.attendance.querySelectorAll("input:checked")].map((x) => x.value); const lodgingNights = [...el.lodging.querySelectorAll("input:checked")].map((x) => x.value); const existing = person(el.participantId.value); const payload = { id: el.participantId.value || uid("p"), name: el.participantName.value.trim(), attendanceDates, lodgingNights, drinksAlcohol: el.drinks.checked, active: el.active.checked, createdAt: existing?.createdAt }; setBusy(true); try { await saveAction("adminSaveParticipant", payload); resetParticipant(); renderAll(); showToast("บันทึกรายชื่อแล้ว"); } catch (e) { showToast(e.message); } finally { setBusy(false); } });
-  el.settlementForm.addEventListener("submit", async (event) => { event.preventDefault(); if (el.settlementFrom.value === el.settlementTo.value) return showToast("ผู้โอนและผู้รับต้องเป็นคนละคน"); const existing = state.settlements.find((x) => x.id === el.settlementId.value); const payload = { id: el.settlementId.value || uid("settle"), date: el.settlementDate.value, fromParticipantId: el.settlementFrom.value, toParticipantId: el.settlementTo.value, amount: round2(el.settlementAmount.value), note: el.settlementNote.value.trim(), createdAt: existing?.createdAt }; setBusy(true); try { await saveAction("adminSaveSettlement", payload); resetSettlement(); renderAll(); showToast("บันทึกรายการโอนแล้ว"); } catch (e) { showToast(e.message); } finally { setBusy(false); } });
   el.receiptForm.addEventListener("submit", async (event) => { event.preventDefault(); const payload = collectReceipt(); const errors = validateReceipt(payload); el.receiptValidation.classList.toggle("hidden", !errors.length); el.receiptValidation.innerHTML = errors.length ? `<strong>กรุณาตรวจสอบ:</strong><ul>${errors.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""; if (errors.length) return; setBusy(true); try { payload.receiptImage = await imagePayload(el.receiptImage.files[0]); const existing = state.receipts.find((x) => x.id === payload.id); payload.createdAt = existing?.createdAt; await saveAction("adminSaveReceipt", payload); resetReceipt(); renderAll(); showToast("บันทึกใบเสร็จแล้ว"); } catch (e) { showToast(e.message); } finally { setBusy(false); } });
 
-  el.addPayer.addEventListener("click", () => addPayerRow()); el.addLine.addEventListener("click", () => addLine()); el.receiptDate.addEventListener("change", () => el.lineRows.querySelectorAll(".expense-line-card").forEach((card) => { if (card.querySelector(".line-split-mode").value === "attendance_date") renderLinePeople(card); }));
-  el.participantCancel.addEventListener("click", resetParticipant); el.settlementCancel.addEventListener("click", resetSettlement); el.receiptCancel.addEventListener("click", resetReceipt); el.refresh.addEventListener("click", loadData); el.logout.addEventListener("click", logout);
+  el.addPayer.addEventListener("click", () => addPayerRow()); el.addLine.addEventListener("click", () => addLine()); el.receiptDate.addEventListener("change", () => el.lineRows.querySelectorAll(".expense-line-card").forEach((card) => { const mode = card.querySelector(".line-split-mode").value; if (mode === "attendance_date") renderLinePeople(card); if (mode === "lodging_night") { updateLineUi(card); renderLinePeople(card); } }));
+  el.participantCancel.addEventListener("click", resetParticipant); el.receiptCancel.addEventListener("click", resetReceipt); el.refresh.addEventListener("click", loadData); el.logout.addEventListener("click", logout);
 
-  el.settlementDate.value = isoToday(); addPayerRow(); addLine();
+  addPayerRow(); addLine();
   if (adminToken) { showAdmin(); loadData(); }
 })();
