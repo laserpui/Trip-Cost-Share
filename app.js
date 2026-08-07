@@ -5,7 +5,7 @@
   const API_URL = String(CONFIG.API_URL || "").trim();
   const IS_DEMO = !/^https:\/\/script\.google\.com\/macros\/s\//.test(API_URL);
   const STORAGE_KEY = "trip-cost-share-v5-demo";
-  const SNAPSHOT_KEY = "trip-cost-share-v5.6.1-snapshot";
+  const SNAPSHOT_KEY = "trip-cost-share-v5.7-snapshot";
   const SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   const EPSILON = 0.011;
 
@@ -127,8 +127,24 @@
     return result;
   }
   async function apiPost(action, payload) {
-    const response = await fetch(API_URL, { method: "POST", redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, payload }) });
-    const result = await response.json(); if (!result.ok) throw new Error(result.message || "บันทึกข้อมูลไม่สำเร็จ"); return result;
+    const delays = [0, 450, 900, 1500];
+    let lastError = null;
+    for (let attempt = 0; attempt < delays.length; attempt++) {
+      if (delays[attempt]) await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+      try {
+        const response = await fetch(API_URL, { method: "POST", redirect: "follow", cache: "no-store", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, payload }) });
+        const result = await response.json();
+        if (result.ok) return result;
+        const error = new Error(result.message || "บันทึกข้อมูลไม่สำเร็จ");
+        error.code = result.code || "ERROR";
+        if (error.code !== "BUSY") throw error;
+        lastError = error;
+      } catch (error) {
+        if (error.code !== "BUSY") throw error;
+        lastError = error;
+      }
+    }
+    throw lastError || new Error("ระบบกำลังมีการบันทึกข้อมูลอื่น กรุณาลองอีกครั้ง");
   }
   async function loadData(options = {}) {
     const allowSnapshot = options.allowSnapshot !== false;
@@ -286,12 +302,22 @@
     el.previewSection.scrollIntoView({ block: "start" }); return !errors.length;
   }
 
-  async function fileToReceiptPayload(file) { if (!file) return null; const resized = await resizeImage(file, Number(CONFIG.RECEIPT_MAX_WIDTH || 1600), Number(CONFIG.RECEIPT_JPEG_QUALITY || 0.82)); return { name: file.name, mimeType: "image/jpeg", dataBase64: resized.split(",")[1] }; }
+  async function fileToReceiptPayload(file) { if (!file) return null; const maxWidth = Math.min(Number(CONFIG.RECEIPT_MAX_WIDTH || 1280), 1280);
+    const quality = Math.min(Number(CONFIG.RECEIPT_JPEG_QUALITY || 0.74), 0.76);
+    const resized = await resizeImage(file, maxWidth, quality); return { name: file.name, mimeType: "image/jpeg", dataBase64: resized.split(",")[1] }; }
   function resizeImage(file, maxSize, quality) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onerror = reject; reader.onload = () => { const img = new Image(); img.onerror = reject; img.onload = () => { let { width, height } = img; const scale = Math.min(1, maxSize / Math.max(width, height)); width = Math.round(width * scale); height = Math.round(height * scale); const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height; canvas.getContext("2d").drawImage(img, 0, 0, width, height); resolve(canvas.toDataURL("image/jpeg", quality)); }; img.src = reader.result; }; reader.readAsDataURL(file); }); }
 
   async function addParticipant(payload) {
     if (IS_DEMO) { state.participants.push({ ...payload, id: uid("p"), active: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); saveDemo(); }
-    else { Object.assign(state, (await apiPost("addParticipant", payload)).data); saveSnapshot(); }
+    else {
+      const result = await apiPost("addParticipant", payload);
+      if (result.data?.participant) {
+        const participant = result.data.participant;
+        const index = state.participants.findIndex((item) => item.id === participant.id);
+        if (index >= 0) state.participants[index] = participant; else state.participants.push(participant);
+      } else Object.assign(state, result.data || {}); // backward compatibility
+      saveSnapshot();
+    }
   }
   async function updateParticipantsLodgingBatch(items) {
     if (IS_DEMO) {
@@ -314,7 +340,19 @@
       const receipt = { ...payload, receiptUrl: payload.receiptImage?.dataBase64 ? `data:${payload.receiptImage.mimeType};base64,${payload.receiptImage.dataBase64}` : "", createdAt: new Date().toISOString() };
       state.receipts.push({ id: receipt.id, date: receipt.date, merchant: receipt.merchant, total: receipt.total, note: receipt.note, payerContributions: receipt.payerContributions, receiptUrl: receipt.receiptUrl, receiptThumbnailUrl: receipt.receiptUrl, createdAt: receipt.createdAt });
       receipt.lines.forEach((line) => { state.expenseLines.push({ ...line, receiptId: receipt.id }); const result = calculateLineShares(line); Object.entries(result.shares).forEach(([participantId, amount]) => state.expenseShares.push({ id: uid("share"), receiptId: receipt.id, lineId: line.id, participantId, amount })); }); saveDemo();
-    } else { Object.assign(state, (await apiPost("addReceipt", payload)).data); saveSnapshot(); }
+    } else {
+      const result = await apiPost("addReceipt", payload);
+      const data = result.data || {};
+      if (data.receipt) {
+        state.receipts = state.receipts.filter((item) => item.id !== data.receipt.id);
+        state.expenseLines = state.expenseLines.filter((item) => item.receiptId !== data.receipt.id);
+        state.expenseShares = state.expenseShares.filter((item) => item.receiptId !== data.receipt.id);
+        state.receipts.push(data.receipt);
+        state.expenseLines.push(...(data.expenseLines || []));
+        state.expenseShares.push(...(data.expenseShares || []));
+      } else Object.assign(state, data); // backward compatibility
+      saveSnapshot();
+    }
   }
 
   function resetParticipantForm() { el.participantForm.reset(); renderAttendanceOptions(); renderLodgingOptions(); }

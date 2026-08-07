@@ -65,10 +65,21 @@
   function loadDemo() { const raw = localStorage.getItem(STORAGE_KEY); if (raw) Object.assign(state, JSON.parse(raw)); }
 
   async function apiPost(action, payload = {}) {
-    const response = await fetch(API_URL, { method: "POST", redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, payload, token: adminToken }) });
-    const result = await response.json();
-    if (!result.ok) { if (result.code === "AUTH_REQUIRED") logoutLocal(); throw new Error(result.message || "ทำรายการไม่สำเร็จ"); }
-    return result;
+    const retryable = action !== "adminLogin" && action !== "adminLogout" && action !== "adminBootstrap";
+    const delays = retryable ? [0, 450, 900, 1500] : [0];
+    let lastError = null;
+    for (let attempt = 0; attempt < delays.length; attempt++) {
+      if (delays[attempt]) await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+      const response = await fetch(API_URL, { method: "POST", redirect: "follow", cache: "no-store", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, payload, token: adminToken }) });
+      const result = await response.json();
+      if (result.ok) return result;
+      if (result.code === "AUTH_REQUIRED") { logoutLocal(); throw new Error(result.message || "สิทธิ์ Admin หมดอายุ"); }
+      const error = new Error(result.message || "ทำรายการไม่สำเร็จ");
+      error.code = result.code || "ERROR";
+      if (error.code !== "BUSY" || !retryable) throw error;
+      lastError = error;
+    }
+    throw lastError || new Error("ระบบกำลังมีการบันทึกข้อมูลอื่น กรุณาลองอีกครั้ง");
   }
 
   async function login(password) {
