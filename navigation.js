@@ -16,12 +16,25 @@
     settlements: { kicker: "SETTLEMENT MANAGEMENT", title: "จัดการการชำระคืน", description: "เพิ่ม แก้ไข หรือลบรายการโอนระหว่างสมาชิก" }
   };
 
-  const sidebar = document.getElementById("appSidebar");
-  const overlay = document.getElementById("sidebarOverlay");
-  const mobileMenu = document.getElementById("mobileMenuBtn");
-  const title = document.getElementById("currentPageTitle");
-  const kicker = document.getElementById("currentPageKicker");
-  const description = document.getElementById("currentPageDescription");
+  const $ = (id) => document.getElementById(id);
+  const sidebar = $("appSidebar");
+  const overlay = $("sidebarOverlay");
+  const mobileMenu = $("mobileMenuBtn");
+  const title = $("currentPageTitle");
+  const kicker = $("currentPageKicker");
+  const description = $("currentPageDescription");
+  const isAdmin = Boolean(document.querySelector("[data-admin-page]"));
+
+  const pageSelector = isAdmin ? "[data-admin-page]" : "[data-page]";
+  const targetSelector = isAdmin ? "[data-admin-page-target]" : "[data-page-target]";
+  const pageKey = isAdmin ? "adminPage" : "page";
+  const targetKey = isAdmin ? "adminPageTarget" : "pageTarget";
+  const metaMap = isAdmin ? adminMeta : publicMeta;
+  const defaultPage = isAdmin ? "overview" : "dashboard";
+  const pageNodes = [...document.querySelectorAll(pageSelector)];
+  const navTargets = [...document.querySelectorAll(targetSelector)];
+  let currentPage = "";
+  let previewFrame = 0;
 
   function openSidebar() {
     document.body.classList.add("sidebar-open");
@@ -33,104 +46,113 @@
     sidebar?.classList.remove("open");
   }
 
-  mobileMenu?.addEventListener("click", openSidebar);
-  overlay?.addEventListener("click", closeSidebar);
+  mobileMenu?.addEventListener("click", openSidebar, { passive: true });
+  overlay?.addEventListener("click", closeSidebar, { passive: true });
 
   function updateHeader(meta) {
     if (!meta) return;
-    if (title) title.textContent = meta.title;
-    if (kicker) kicker.textContent = meta.kicker;
-    if (description) description.textContent = meta.description;
-    document.title = `${meta.title} · Trip Cost Share v5.3`;
+    if (title && title.textContent !== meta.title) title.textContent = meta.title;
+    if (kicker && kicker.textContent !== meta.kicker) kicker.textContent = meta.kicker;
+    if (description && description.textContent !== meta.description) description.textContent = meta.description;
+    document.title = `${meta.title} · Trip Cost Share v5.3.2`;
   }
 
-  function showPublicPage(page, pushHash = true) {
-    if (!publicMeta[page]) page = "dashboard";
-    document.querySelectorAll("[data-page]").forEach((section) => section.classList.toggle("active", section.dataset.page === page));
-    document.querySelectorAll("[data-page-target]").forEach((link) => link.classList.toggle("active", link.dataset.pageTarget === page && link.classList.contains("app-nav-link")));
-    updateHeader(publicMeta[page]);
-    if (pushHash && location.hash !== `#${page}`) history.replaceState(null, "", `#${page}`);
-    closeSidebar();
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    if (page === "lodging") updateLodgingPreview();
-  }
-
-  function updateLodgingPreview() {
-    const preview = document.getElementById("lodgingParticipantPreview");
-    const name = document.getElementById("participantName")?.value.trim();
-    const attendanceCount = document.querySelectorAll("#attendanceDateOptions input:checked").length;
+  function updateLodgingPreviewNow() {
+    previewFrame = 0;
+    const preview = $("lodgingParticipantPreview");
     if (!preview) return;
+    const name = $("participantName")?.value.trim();
+    const attendanceCount = document.querySelectorAll("#attendanceDateOptions input:checked").length;
     preview.textContent = name
       ? `กำลังกำหนดที่พักให้ “${name}” · เข้าร่วม ${attendanceCount} วัน`
       : "กรุณากรอกชื่อผู้ร่วมกิจกรรมในหน้าก่อนหน้า";
   }
 
-  document.querySelectorAll("[data-page-target]").forEach((link) => {
-    link.addEventListener("click", () => showPublicPage(link.dataset.pageTarget));
-  });
-
-  document.getElementById("goLodgingBtn")?.addEventListener("click", () => {
-    const nameInput = document.getElementById("participantName");
-    const attendance = document.querySelectorAll("#attendanceDateOptions input:checked");
-    if (!nameInput?.value.trim()) {
-      nameInput?.focus();
-      nameInput?.reportValidity();
-      return;
-    }
-    if (!attendance.length) {
-      const toast = document.getElementById("toast");
-      if (toast) {
-        toast.textContent = "กรุณาเลือกวันที่เข้าร่วมอย่างน้อย 1 วัน";
-        toast.classList.add("show");
-        setTimeout(() => toast.classList.remove("show"), 2500);
-      }
-      return;
-    }
-    showPublicPage("lodging");
-  });
-
-  document.getElementById("backParticipantBtn")?.addEventListener("click", () => showPublicPage("participants"));
-  document.getElementById("participantName")?.addEventListener("input", updateLodgingPreview);
-  document.getElementById("attendanceDateOptions")?.addEventListener("change", updateLodgingPreview);
-
-  const participantForm = document.getElementById("participantForm");
-  participantForm?.addEventListener("submit", (event) => {
-    const nameInput = document.getElementById("participantName");
-    const attendance = document.querySelectorAll("#attendanceDateOptions input:checked");
-    if (!nameInput?.value.trim() || !attendance.length) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      showPublicPage("participants");
-      window.setTimeout(() => {
-        if (!nameInput?.value.trim()) nameInput?.focus();
-      }, 80);
-    }
-  }, true);
-
-  participantForm?.addEventListener("invalid", () => showPublicPage("participants"), true);
-
-  function showAdminPage(page, pushHash = true) {
-    if (!adminMeta[page]) page = "overview";
-    document.querySelectorAll("[data-admin-page]").forEach((section) => section.classList.toggle("active", section.dataset.adminPage === page));
-    document.querySelectorAll("[data-admin-page-target]").forEach((link) => link.classList.toggle("active", link.dataset.adminPageTarget === page && link.classList.contains("app-nav-link")));
-    updateHeader(adminMeta[page]);
-    if (pushHash && location.hash !== `#${page}`) history.replaceState(null, "", `#${page}`);
-    closeSidebar();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  function scheduleLodgingPreview() {
+    if (previewFrame) return;
+    previewFrame = requestAnimationFrame(updateLodgingPreviewNow);
   }
 
-  document.querySelectorAll("[data-admin-page-target]").forEach((link) => {
-    link.addEventListener("click", () => showAdminPage(link.dataset.adminPageTarget));
+  function showPage(requestedPage, pushHash = true) {
+    const page = metaMap[requestedPage] ? requestedPage : defaultPage;
+
+    if (currentPage !== page) {
+      pageNodes.forEach((section) => {
+        section.classList.toggle("active", section.dataset[pageKey] === page);
+      });
+      navTargets.forEach((link) => {
+        const active = link.dataset[targetKey] === page && link.classList.contains("app-nav-link");
+        link.classList.toggle("active", active);
+      });
+      currentPage = page;
+    }
+
+    updateHeader(metaMap[page]);
+    if (pushHash && location.hash !== `#${page}`) history.replaceState(null, "", `#${page}`);
+    closeSidebar();
+
+    // Instant scroll is deliberate: smooth scrolling + glass layers caused noticeable jank on some devices.
+    if (window.scrollY > 0) window.scrollTo(0, 0);
+    if (!isAdmin && page === "lodging") scheduleLodgingPreview();
+  }
+
+  // Single delegated listener instead of registering a listener on every menu/quick-action item.
+  document.addEventListener("click", (event) => {
+    const target = event.target.closest(targetSelector);
+    if (!target) return;
+    const page = target.dataset[targetKey];
+    if (!page || !metaMap[page]) return;
+    if (target.tagName === "A") return;
+    showPage(page);
   });
 
-  const isAdmin = Boolean(document.querySelector("[data-admin-page]"));
+  if (!isAdmin) {
+    $("goLodgingBtn")?.addEventListener("click", () => {
+      const nameInput = $("participantName");
+      const attendance = document.querySelectorAll("#attendanceDateOptions input:checked");
+      if (!nameInput?.value.trim()) {
+        nameInput?.focus();
+        nameInput?.reportValidity();
+        return;
+      }
+      if (!attendance.length) {
+        const toast = $("toast");
+        if (toast) {
+          toast.textContent = "กรุณาเลือกวันที่เข้าร่วมอย่างน้อย 1 วัน";
+          toast.classList.add("show");
+          window.setTimeout(() => toast.classList.remove("show"), 2200);
+        }
+        return;
+      }
+      showPage("lodging");
+    });
+
+    $("backParticipantBtn")?.addEventListener("click", () => showPage("participants"));
+    $("participantName")?.addEventListener("input", scheduleLodgingPreview, { passive: true });
+    $("attendanceDateOptions")?.addEventListener("change", scheduleLodgingPreview, { passive: true });
+
+    const participantForm = $("participantForm");
+    participantForm?.addEventListener("submit", (event) => {
+      const nameInput = $("participantName");
+      const attendance = document.querySelectorAll("#attendanceDateOptions input:checked");
+      if (!nameInput?.value.trim() || !attendance.length) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        showPage("participants");
+        window.setTimeout(() => {
+          if (!nameInput?.value.trim()) nameInput?.focus();
+        }, 40);
+      }
+    }, true);
+
+    participantForm?.addEventListener("invalid", () => showPage("participants"), true);
+  }
+
   const initial = location.hash.replace("#", "");
-  if (isAdmin) showAdminPage(adminMeta[initial] ? initial : "overview", false);
-  else if (document.querySelector("[data-page]")) showPublicPage(publicMeta[initial] ? initial : "dashboard", false);
+  showPage(metaMap[initial] ? initial : defaultPage, false);
 
   window.addEventListener("hashchange", () => {
     const page = location.hash.replace("#", "");
-    if (isAdmin) showAdminPage(adminMeta[page] ? page : "overview", false);
-    else showPublicPage(publicMeta[page] ? page : "dashboard", false);
+    showPage(metaMap[page] ? page : defaultPage, false);
   });
 })();

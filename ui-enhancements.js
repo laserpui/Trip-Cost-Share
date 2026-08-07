@@ -83,16 +83,23 @@
     element.prepend(createIcon(icon, className));
   }
 
-  function enhanceButtons() {
-    document.querySelectorAll("button.btn, a.btn").forEach((button) => {
-      if (button.querySelector(".ui-icon")) return;
+  function candidates(root, selector) {
+    const list = [];
+    if (root?.nodeType === 1 && root.matches?.(selector)) list.push(root);
+    if (root?.querySelectorAll) list.push(...root.querySelectorAll(selector));
+    return list;
+  }
+
+  function enhanceButtons(root = document) {
+    candidates(root, "button.btn, a.btn").forEach((button) => {
+      if (button.querySelector(":scope > .ui-icon")) return;
       const icon = findIcon(button.textContent, buttonIcons);
       if (icon) injectIcon(button, icon);
     });
   }
 
-  function enhanceHeadings() {
-    document.querySelectorAll(".panel-heading h2").forEach((heading) => {
+  function enhanceHeadings(root = document) {
+    candidates(root, ".panel-heading h2").forEach((heading) => {
       if (heading.closest(".heading-with-icon")) return;
       const icon = findIcon(heading.textContent, headingIcons);
       if (!icon) return;
@@ -104,27 +111,46 @@
     });
   }
 
-  function enhanceMetrics() {
-    document.querySelectorAll(".summary-card > span:first-child").forEach((label) => {
-      if (label.querySelector(".metric-icon")) return;
+  function enhanceMetrics(root = document) {
+    candidates(root, ".summary-card > span:first-child").forEach((label) => {
+      if (label.querySelector(":scope > .metric-icon")) return;
       const icon = findIcon(label.textContent, metricIcons);
       if (icon) injectIcon(label, icon, "metric-icon");
     });
   }
 
-  let scheduled = false;
-  function enhanceUI() {
-    if (scheduled) return;
-    scheduled = true;
-    window.requestAnimationFrame(() => {
-      scheduled = false;
-      enhanceButtons();
-      enhanceHeadings();
-      enhanceMetrics();
-    });
+  function enhanceRoot(root) {
+    enhanceButtons(root);
+    enhanceHeadings(root);
+    enhanceMetrics(root);
   }
 
-  document.documentElement.classList.add("modern-ui");
-  document.addEventListener("DOMContentLoaded", enhanceUI, { once: true });
-  new MutationObserver(enhanceUI).observe(document.documentElement, { childList: true, subtree: true });
+  document.documentElement.classList.add("modern-ui", "performance-ui");
+
+  const start = () => {
+    enhanceRoot(document);
+
+    let queued = [];
+    let frame = 0;
+    const flush = () => {
+      frame = 0;
+      const roots = queued;
+      queued = [];
+      roots.forEach(enhanceRoot);
+    };
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === 1) queued.push(node);
+        }
+      }
+      if (queued.length && !frame) frame = requestAnimationFrame(flush);
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  };
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
+  else start();
 })();

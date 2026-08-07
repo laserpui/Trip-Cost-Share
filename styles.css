@@ -3066,3 +3066,105 @@ footer {
   position: relative;
   z-index: 1;
 }
+
+
+/* =========================================================
+   v5.3.2 Stability / Performance Layer
+   Keeps the glass-inspired appearance while reducing GPU repaint cost.
+   No API, calculation, or database behavior is changed.
+   ========================================================= */
+
+html { scroll-behavior: auto; }
+body { background-attachment: scroll; }
+
+/* Continuous blurred background animations are expensive on integrated GPUs/mobile. */
+body::before,
+body::after {
+  animation: none !important;
+  filter: none !important;
+  opacity: 0.32;
+}
+
+/* Use translucent surfaces instead of live blur on every card. */
+.panel,
+.summary-card,
+.notice,
+.warning-box,
+.choice-fieldset,
+.btn-secondary,
+.badge,
+th,
+.toast {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.panel,
+.summary-card {
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 12px 34px rgba(49, 46, 129, 0.075), 0 2px 8px rgba(15, 23, 42, 0.035);
+}
+
+/* Keep a small amount of glass only on the two major navigation surfaces. */
+.app-sidebar,
+.workspace-header {
+  background: rgba(255, 255, 255, 0.88);
+  -webkit-backdrop-filter: blur(9px) saturate(115%) !important;
+  backdrop-filter: blur(9px) saturate(115%) !important;
+}
+
+.choice-fieldset {
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.btn-secondary,
+.badge,
+th {
+  background-color: rgba(255, 255, 255, 0.90);
+}
+
+/* Page transitions looked nice but caused extra paint/layout work when switching modules. */
+.app-page.active,
+.admin-page.active {
+  animation: none !important;
+}
+
+/* Stop continuous decorative pulses; interaction hover transitions remain. */
+.secure-pulse {
+  animation: none !important;
+  opacity: 0.28;
+}
+
+/* Reduce repainting from large shadows while keeping hierarchy. */
+.dashboard-welcome,
+.page-intro-card,
+.receipt-builder-panel,
+.settlement-lodging-panel {
+  box-shadow: 0 14px 38px rgba(49, 46, 129, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+/* Avoid backdrop blur on the mobile overlay, which is especially costly. */
+@media (max-width: 980px) {
+  .app-sidebar,
+  .workspace-header,
+  .sidebar-overlay,
+  .receipt-dialog,
+  .receipt-dialog::backdrop {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .app-sidebar,
+  .workspace-header {
+    background: rgba(255, 255, 255, 0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
