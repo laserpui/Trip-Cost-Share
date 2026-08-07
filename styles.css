@@ -962,3 +962,154 @@ input[type="file"]::file-selector-button {
   .sidebar { padding-top: 12px; padding-bottom: 12px; }
   .brand { padding-top: 0; }
 }
+
+/* =========================================================
+   v6.5 Modern Dialog / Popup System
+   ========================================================= */
+body.dialog-open { overflow: hidden; }
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, .34);
+  -webkit-backdrop-filter: blur(10px) saturate(115%);
+  backdrop-filter: blur(10px) saturate(115%);
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+.dialog-overlay.open { opacity: 1; }
+.dialog-overlay.closing { opacity: 0; }
+
+.dialog-card {
+  width: min(100%, 470px);
+  max-height: min(86vh, 680px);
+  overflow: auto;
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,.88);
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.96), rgba(255,255,255,.84)),
+    linear-gradient(135deg, var(--bg-a), var(--bg-b), var(--bg-c));
+  box-shadow: 0 28px 80px rgba(15,23,42,.24), inset 0 1px 0 rgba(255,255,255,.95);
+  padding: 26px;
+  transform: translateY(14px) scale(.975);
+  opacity: 0;
+  transition: transform .2s cubic-bezier(.2,.8,.2,1), opacity .18s ease;
+}
+.dialog-overlay.open .dialog-card { transform: translateY(0) scale(1); opacity: 1; }
+.dialog-overlay.closing .dialog-card { transform: translateY(8px) scale(.985); opacity: 0; }
+
+.dialog-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 19px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(84,80,238,.15), rgba(31,183,200,.13));
+  color: var(--primary);
+  box-shadow: 0 12px 28px rgba(84,80,238,.10);
+}
+.dialog-icon svg { width: 29px; height: 29px; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.dialog-success .dialog-icon { color: var(--success); background: var(--success-bg); }
+.dialog-warning .dialog-icon { color: var(--warning); background: var(--warning-bg); }
+.dialog-danger .dialog-icon { color: var(--danger); background: var(--danger-bg); }
+
+.dialog-copy h2 { margin: 0; font-size: clamp(1.25rem, 3vw, 1.55rem); line-height: 1.25; letter-spacing: -.01em; }
+.dialog-copy p { margin: 8px 0 0; color: var(--muted); line-height: 1.65; }
+.dialog-detail {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(100,116,139,.14);
+  border-radius: 15px;
+  background: rgba(248,250,252,.72);
+  color: #475467;
+  font-size: .87rem;
+  line-height: 1.55;
+}
+
+.dialog-prompt-field { display: grid; gap: 7px; margin-top: 18px; }
+.dialog-prompt-field > span { font-size: .84rem; font-weight: 800; color: #344054; }
+.dialog-prompt-field input {
+  min-height: 50px;
+  border-radius: 14px;
+  border: 1px solid #d0d5dd;
+  padding: 11px 13px;
+  background: rgba(255,255,255,.94);
+  font-weight: 800;
+  letter-spacing: .05em;
+  outline: none;
+}
+.dialog-prompt-field input:focus { border-color: rgba(84,80,238,.58); box-shadow: 0 0 0 4px rgba(84,80,238,.10); }
+.dialog-prompt-field input.invalid { border-color: rgba(180,35,24,.55); box-shadow: 0 0 0 4px rgba(180,35,24,.08); }
+.dialog-prompt-field small { color: var(--muted); line-height: 1.45; }
+.dialog-prompt-error { min-height: 18px; color: var(--danger) !important; font-weight: 700; }
+
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.dialog-btn {
+  min-height: 45px;
+  border-radius: 13px;
+  padding: 10px 17px;
+  border: 0;
+  font-weight: 800;
+  transition: transform .14s ease, box-shadow .14s ease, background .14s ease;
+}
+.dialog-btn:hover { transform: translateY(-1px); }
+.dialog-btn:focus-visible { outline: 3px solid rgba(84,80,238,.18); outline-offset: 2px; }
+.dialog-btn-secondary { color: #344054; background: rgba(255,255,255,.86); border: 1px solid rgba(100,116,139,.18); }
+.dialog-btn-primary { color: white; background: linear-gradient(135deg, var(--primary), var(--primary-2)); box-shadow: 0 10px 24px rgba(84,80,238,.20); }
+.dialog-btn-danger { background: linear-gradient(135deg, #c62f24, #e05247); box-shadow: 0 10px 24px rgba(180,35,24,.20); }
+
+/* Modern toast */
+.toast {
+  right: 22px;
+  bottom: 22px;
+  z-index: 11000;
+  min-width: min(330px, calc(100vw - 32px));
+  max-width: min(440px, calc(100vw - 32px));
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 18px;
+  padding: 14px 16px 14px 46px;
+  background: rgba(23,32,51,.94);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 22px 56px rgba(15,23,42,.28);
+  font-weight: 700;
+  line-height: 1.45;
+}
+.toast::before {
+  content: "i";
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,.14);
+  font-size: .78rem;
+}
+
+@media (max-width: 640px) {
+  .dialog-overlay { align-items: end; padding: 12px; }
+  .dialog-card {
+    width: 100%;
+    border-radius: 25px;
+    padding: 22px 18px calc(18px + env(safe-area-inset-bottom));
+    max-height: 88vh;
+  }
+  .dialog-icon { width: 52px; height: 52px; border-radius: 17px; }
+  .dialog-actions { display: grid; grid-template-columns: 1fr; }
+  .dialog-btn { width: 100%; min-height: 48px; }
+  .dialog-btn-primary { order: -1; }
+  .toast { left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); min-width: 0; max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-overlay, .dialog-card, .dialog-btn { transition: none !important; }
+}

@@ -12,6 +12,11 @@
   const EPSILON = 0.011;
   const state = { settings:{}, participants:[], receipts:[], expenseLines:[], expenseShares:[], apiVersion:"-" };
   let token = sessionStorage.getItem(ADMIN_TOKEN_KEY) || "";
+  const Dialog = window.TripDialog || {
+    alert: async () => true,
+    confirm: async () => false,
+    prompt: async () => null
+  };
 
   const CATEGORY_LABELS = { food:"ค่าอาหาร", beverage:"เครื่องดื่ม", alcohol:"เครื่องดื่มแอลกอฮอล์", lodging:"ที่พัก", activity:"กิจกรรม", transport:"การเดินทาง", shared:"ของใช้ส่วนกลาง", other:"อื่น ๆ" };
   const $ = (id) => document.getElementById(id);
@@ -58,7 +63,7 @@
   function renderParticipants(){el.participantTable.innerHTML=state.participants.length?state.participants.map((p)=>`<tr><td><strong>${esc(p.name)}</strong></td><td>${p.attendanceDates.map(dateLabel).join(", ")||"-"}</td><td>${p.lodgingNights.map((d)=>`คืน ${dateLabel(d)}`).join(", ")||"-"}</td><td>${p.active===false?"ปิดใช้งาน":p.drinksAlcohol?"ใช้งาน · ดื่ม":"ใช้งาน · ไม่ดื่ม"}</td><td class="right"><button class="btn secondary" data-edit-person="${esc(p.id)}" type="button">แก้ไข</button> <button class="btn danger" data-delete-person="${esc(p.id)}" type="button">ลบ</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty-cell">ยังไม่มีรายชื่อ</td></tr>`;el.participantTable.querySelectorAll("[data-edit-person]").forEach((b)=>b.addEventListener("click",()=>editParticipant(b.dataset.editPerson)));el.participantTable.querySelectorAll("[data-delete-person]").forEach((b)=>b.addEventListener("click",()=>deleteParticipant(b.dataset.deletePerson)));}
   function resetParticipant(){el.participantForm.reset();el.participantId.value="";el.active.checked=true;if(el.drinks)el.drinks.checked=false;renderDateChecks();el.participantSubmit.textContent="เพิ่มรายชื่อ";el.participantCancel.classList.add("hidden");}
   function editParticipant(id){const p=participant(id);if(!p)return;el.participantId.value=p.id;el.participantName.value=p.name;el.active.checked=p.active!==false;if(el.drinks)el.drinks.checked=Boolean(p.drinksAlcohol);renderDateChecks(p.attendanceDates,p.lodgingNights);el.participantSubmit.textContent="บันทึกการแก้ไข";el.participantCancel.classList.remove("hidden");el.participantForm.scrollIntoView({block:"start"});}
-  async function deleteParticipant(id){if(!confirm("ยืนยันการลบรายชื่อนี้หรือไม่?"))return;try{if(IS_DEMO){state.participants=state.participants.filter((p)=>p.id!==id);demoSave();}else await apiPost("adminDeleteParticipant",{id});state.participants=state.participants.filter((p)=>p.id!==id);renderAll();showToast("ลบรายชื่อแล้ว");}catch(error){showToast(error.message);}}
+  async function deleteParticipant(id){const confirmed=await Dialog.confirm({title:"ลบผู้ร่วมกิจกรรม?",message:"รายชื่อนี้จะถูกลบออกจากทริป หากมีข้อมูลค่าใช้จ่ายอ้างอิงอยู่ระบบจะไม่อนุญาตให้ลบ",tone:"danger",confirmText:"ลบรายชื่อ",cancelText:"ยกเลิก"});if(!confirmed)return;try{if(IS_DEMO){state.participants=state.participants.filter((p)=>p.id!==id);demoSave();}else await apiPost("adminDeleteParticipant",{id});state.participants=state.participants.filter((p)=>p.id!==id);renderAll();showToast("ลบรายชื่อแล้ว");}catch(error){showToast(error.message);}}
 
   function allParticipantOptions(selected=""){return `<option value="">เลือกรายชื่อ</option>${state.participants.map((p)=>`<option value="${esc(p.id)}" ${p.id===selected?"selected":""}>${esc(p.name)}${p.active===false?" (ปิดใช้งาน)":""}</option>`).join("")}`;}
   function addPayerRow(data={}){const fragment=$("adminPayerRowTemplate").content.cloneNode(true),row=fragment.querySelector(".payer-row");row.querySelector(".payer-person").innerHTML=allParticipantOptions(data.participantId||"");row.querySelector(".payer-amount").value=data.amount||"";row.querySelector(".remove-row-btn").addEventListener("click",()=>{if(el.payerRows.children.length<=1)return showToast("ต้องมีผู้จ่ายอย่างน้อย 1 คน");row.remove();});el.payerRows.appendChild(fragment);}
@@ -78,25 +83,57 @@
   function renderReceipts(){const lineCounts=new Map();state.expenseLines.forEach((line)=>lineCounts.set(line.receiptId,(lineCounts.get(line.receiptId)||0)+1));el.receiptTable.innerHTML=state.receipts.length?[...state.receipts].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map((r)=>`<tr><td>${esc(dateLabel(r.date))}</td><td><strong>${esc(r.merchant)}</strong></td><td>${lineCounts.get(r.id)||0}</td><td>${r.receiptUrl?`<a href="${esc(r.receiptUrl)}" target="_blank" rel="noopener">ดูรูป</a>`:"-"}</td><td class="right"><strong>${money(r.total)}</strong></td><td class="right"><button class="btn secondary" data-edit-receipt="${esc(r.id)}" type="button">แก้ไข</button> <button class="btn danger" data-delete-receipt="${esc(r.id)}" type="button">ลบ</button></td></tr>`).join(""):`<tr><td colspan="6" class="empty-cell">ยังไม่มีใบเสร็จ</td></tr>`;el.receiptTable.querySelectorAll("[data-edit-receipt]").forEach((b)=>b.addEventListener("click",()=>editReceipt(b.dataset.editReceipt)));el.receiptTable.querySelectorAll("[data-delete-receipt]").forEach((b)=>b.addEventListener("click",()=>deleteReceipt(b.dataset.deleteReceipt)));}
   function resetReceipt(){el.receiptForm.reset();el.receiptId.value="";el.payerRows.innerHTML="";el.lineRows.innerHTML="";el.existingReceipt.classList.add("hidden");el.removeReceipt.checked=false;el.receiptValidation.classList.add("hidden");el.receiptCancel.classList.add("hidden");el.receiptSubmit.textContent="บันทึกการแก้ไข";}
   function editReceipt(id){const r=state.receipts.find((x)=>x.id===id);if(!r)return;resetReceipt();el.receiptId.value=r.id;el.receiptDate.value=r.date;el.receiptMerchant.value=r.merchant;el.receiptTotal.value=r.total;el.receiptNote.value=r.note||"";(r.payerContributions||[]).forEach(addPayerRow);receiptLines(id).forEach(addLine);if(r.receiptUrl){el.existingReceipt.classList.remove("hidden");el.viewReceipt.onclick=()=>window.open(r.receiptUrl,"_blank","noopener");}el.receiptCancel.classList.remove("hidden");el.receiptForm.scrollIntoView({block:"start"});}
-  async function deleteReceipt(id){if(!confirm("ยืนยันการลบใบเสร็จนี้หรือไม่?"))return;try{if(IS_DEMO){state.receipts=state.receipts.filter((r)=>r.id!==id);state.expenseLines=state.expenseLines.filter((l)=>l.receiptId!==id);state.expenseShares=state.expenseShares.filter((s)=>s.receiptId!==id);demoSave();}else await apiPost("adminDeleteReceipt",{id});state.receipts=state.receipts.filter((r)=>r.id!==id);state.expenseLines=state.expenseLines.filter((l)=>l.receiptId!==id);state.expenseShares=state.expenseShares.filter((s)=>s.receiptId!==id);renderAll();showToast("ลบใบเสร็จแล้ว");}catch(error){showToast(error.message);}}
+  async function deleteReceipt(id){const confirmed=await Dialog.confirm({title:"ลบใบเสร็จ?",message:"ใบเสร็จ รายการย่อย ผลการหาร และรูปใบเสร็จที่เกี่ยวข้องจะถูกลบ",tone:"danger",confirmText:"ลบใบเสร็จ",cancelText:"ยกเลิก"});if(!confirmed)return;try{if(IS_DEMO){state.receipts=state.receipts.filter((r)=>r.id!==id);state.expenseLines=state.expenseLines.filter((l)=>l.receiptId!==id);state.expenseShares=state.expenseShares.filter((s)=>s.receiptId!==id);demoSave();}else await apiPost("adminDeleteReceipt",{id});state.receipts=state.receipts.filter((r)=>r.id!==id);state.expenseLines=state.expenseLines.filter((l)=>l.receiptId!==id);state.expenseShares=state.expenseShares.filter((s)=>s.receiptId!==id);renderAll();showToast("ลบใบเสร็จแล้ว");}catch(error){showToast(error.message);}}
   function renderAll(){renderOverview();renderSettings();renderDateChecks();renderParticipants();renderReceipts();}
 
   el.loginForm.addEventListener("submit",async(e)=>{e.preventDefault();if(CONFIG_ERROR)return showToast("กรุณาตั้ง API_URL ใน config.js ก่อน");const button=e.submitter;setBusy(el.loginForm,true,button,"กำลังเข้าสู่ระบบ...");try{await login(el.password.value);await bootstrap(true);showApp();}catch(error){showToast(error.message);logoutLocal();}finally{setBusy(el.loginForm,false,button);}});
   el.logout.addEventListener("click",logout);el.refresh.addEventListener("click",async()=>{try{await bootstrap(true);renderAll();showToast("รีเฟรชข้อมูลแล้ว");}catch(error){showToast(error.message);}});
   el.settingsForm.addEventListener("submit",async(e)=>{e.preventDefault();const payload={eventName:el.eventName.value.trim(),startDate:el.startDate.value,endDate:el.endDate.value,status:el.eventStatus.value};setBusy(el.settingsForm,true,el.settingsSubmit,"กำลังบันทึก...");el.settingsFeedback.textContent="";try{if(IS_DEMO){state.settings={...state.settings,...payload};demoSave();}else{const result=await apiPost("adminSaveSettings",payload);state.settings=result.data.settings;}normalize();renderAll();el.settingsFeedback.textContent=`บันทึกสำเร็จ · ${dateLabel(state.settings.startDate)} – ${dateLabel(state.settings.endDate)}`;showToast("บันทึกกิจกรรมแล้ว");}catch(error){el.settingsFeedback.textContent=error.message;showToast(error.message);}finally{setBusy(el.settingsForm,false,el.settingsSubmit);}});
   el.resetTrip?.addEventListener("click",async()=>{
-    const first=confirm("รีเซ็ตทริปจะลบผู้ร่วมกิจกรรม ใบเสร็จ รายการย่อย ผลการหาร และรูปใบเสร็จของทริปปัจจุบัน ต้องการดำเนินการต่อหรือไม่?");
+    const first=await Dialog.confirm({
+      title:"รีเซ็ตทริปปัจจุบัน?",
+      message:"ระบบจะล้างผู้ร่วมกิจกรรม ใบเสร็จ รายการย่อย ผลการหาร และรูปใบเสร็จของทริปนี้ ข้อมูลที่ล้างแล้วไม่สามารถกู้คืนจากหน้าเว็บได้",
+      detail:"โครงสร้าง Google Sheet, AdminLog, API และการตั้งค่าการเชื่อมต่อจะยังคงอยู่",
+      tone:"danger",
+      confirmText:"ดำเนินการต่อ",
+      cancelText:"ยกเลิก"
+    });
     if(!first)return;
-    const typed=prompt('พิมพ์คำว่า RESET เพื่อยืนยันการล้างข้อมูลทริป');
-    if(typed!=="RESET")return showToast("ยกเลิกการรีเซ็ตทริป");
+
+    const typed=await Dialog.prompt({
+      title:"ยืนยันการรีเซ็ตอีกครั้ง",
+      message:"พิมพ์ RESET เพื่อยืนยันการล้างข้อมูลทริป",
+      tone:"danger",
+      confirmText:"รีเซ็ตทริป",
+      cancelText:"ยกเลิก",
+      prompt:{
+        label:"คำยืนยัน",
+        placeholder:"RESET",
+        hint:"ต้องพิมพ์ RESET ตัวพิมพ์ใหญ่ให้ตรงกัน",
+        validate:(value)=>String(value||"").trim()==="RESET"?"":"กรุณาพิมพ์ RESET ให้ถูกต้อง"
+      }
+    });
+    if(typed===null)return;
+
     const button=el.resetTrip;button.disabled=true;const original=button.textContent;button.textContent="กำลังรีเซ็ต...";if(el.resetFeedback)el.resetFeedback.textContent="";
     try{
       if(IS_DEMO){const today=todayBangkok();state.settings={eventName:"กิจกรรมใหม่",startDate:today,endDate:today,status:"open"};state.participants=[];state.receipts=[];state.expenseLines=[];state.expenseShares=[];demoSave();}
-      else{const result=await apiPost("adminResetTrip",{confirmation:"RESET"});state.settings=result.data.settings||{};state.participants=[];state.receipts=[];state.expenseLines=[];state.expenseShares=[];}
+      else{
+        const result=await apiPost("adminResetTrip",{confirmation:"RESET"});
+        state.settings=result.data.settings||{};state.participants=[];state.receipts=[];state.expenseLines=[];state.expenseShares=[];
+      }
       try{localStorage.removeItem("trip-cost-share-v6-snapshot");}catch(_){}
       normalize();resetParticipant();resetReceipt();renderAll();if(el.resetFeedback)el.resetFeedback.textContent="รีเซ็ตทริปเรียบร้อย";showToast("รีเซ็ตทริปเรียบร้อย");
-    }catch(error){if(el.resetFeedback)el.resetFeedback.textContent=error.message;showToast(error.message);}
-    finally{button.disabled=false;button.textContent=original;}
+      await Dialog.alert({title:"รีเซ็ตสำเร็จ",message:"ระบบพร้อมสำหรับทริปใหม่แล้ว",tone:"success",confirmText:"เรียบร้อย"});
+    }catch(error){
+      const isOldApi=error.code==="UNKNOWN_ACTION"||/Unknown POST action.*adminResetTrip/i.test(String(error.message||""));
+      if(el.resetFeedback)el.resetFeedback.textContent=isOldApi?"Apps Script ที่ Deploy อยู่ยังไม่รองรับการรีเซ็ต":error.message;
+      if(isOldApi){
+        await Dialog.alert({title:"Apps Script ยังเป็นเวอร์ชันเก่า",message:"หน้าเว็บมีฟังก์ชันรีเซ็ตแล้ว แต่ Web App ที่ Deploy ยังไม่มีคำสั่ง adminResetTrip",detail:"ให้นำ Code.gs v6.5 ไปแทน แล้ว Deploy > Manage deployments > Edit > New version > Deploy โดยใช้ Deployment เดิม",tone:"warning",confirmText:"เข้าใจแล้ว"});
+      }else{
+        await Dialog.alert({title:"รีเซ็ตไม่สำเร็จ",message:error.message||"เกิดข้อผิดพลาดในการรีเซ็ตทริป",tone:"danger",confirmText:"ปิด"});
+      }
+    }finally{button.disabled=false;button.textContent=original;}
   });
   el.participantCancel.addEventListener("click",resetParticipant);
   el.participantForm.addEventListener("submit",async(e)=>{e.preventDefault();const existing=participant(el.participantId.value);const payload={id:el.participantId.value||uid("p"),name:el.participantName.value.trim(),attendanceDates:[...el.attendance.querySelectorAll("input:checked")].map((x)=>x.value),lodgingNights:[...el.lodging.querySelectorAll("input:checked")].map((x)=>x.value),active:el.active.checked,drinksAlcohol:Boolean(el.drinks?.checked),createdAt:existing?.createdAt};setBusy(el.participantForm,true,el.participantSubmit,"กำลังบันทึก...");try{if(IS_DEMO){const idx=state.participants.findIndex((p)=>p.id===payload.id);const saved={...payload,createdAt:payload.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};if(idx>=0)state.participants[idx]=saved;else state.participants.push(saved);demoSave();}else{const result=await apiPost("adminSaveParticipant",payload);const saved=result.data.participant;const idx=state.participants.findIndex((p)=>p.id===saved.id);if(idx>=0)state.participants[idx]=saved;else state.participants.push(saved);}normalize();resetParticipant();renderAll();showToast("บันทึกรายชื่อแล้ว");}catch(error){showToast(error.message);}finally{setBusy(el.participantForm,false,el.participantSubmit);}});
