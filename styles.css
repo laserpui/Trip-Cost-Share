@@ -40,3 +40,68 @@
 @media(max-width:700px){.app-workspace{padding:0 11px 20px}.workspace-header{padding:14px 0}.workspace-title-group h1{font-size:1.35rem}.workspace-title-group .subtitle{display:none}.desktop-admin-button,.workspace-actions>a.btn{display:none}.panel{padding:16px;border-radius:22px}.dashboard-welcome,.page-intro-card{padding:18px;align-items:flex-start}.page-intro-card{display:grid;grid-template-columns:50px 1fr}.page-intro-icon{width:48px;height:48px;border-radius:16px}.summary-grid{grid-template-columns:1fr}.summary-card{min-height:112px}.field-row,.dynamic-row,.settings-grid{grid-template-columns:1fr}.dynamic-row .remove-row-btn{width:100%}.form-actions{display:grid;grid-template-columns:1fr}.checkbox-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.participant-share-grid{grid-template-columns:1fr}.preview-line-card{flex-direction:column}.receipt-card-list{grid-template-columns:1fr}.builder-heading,.panel-heading,.existing-receipt{flex-direction:column}.workspace-footer{flex-direction:column}.admin-login-card{padding:22px 16px}}
 @media(max-width:460px){.checkbox-grid{grid-template-columns:1fr}.workspace-actions #refreshBtn,.workspace-actions #adminRefreshBtn{font-size:0;width:44px;padding:0}.workspace-actions #refreshBtn::after,.workspace-actions #adminRefreshBtn::after{content:"↻";font-size:1.15rem}.quick-action-button{grid-template-columns:38px 1fr}.receipt-card-head{flex-direction:column}.summary-card strong{font-size:1.75rem}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
+
+/* =========================================================
+   v5.5 - Stable bulk lodging matrix + settings feedback
+   ========================================================= */
+.lodging-matrix-panel { overflow: hidden; }
+.info-banner {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(14, 165, 233, .18);
+  border-radius: 14px;
+  background: rgba(240, 249, 255, .72);
+  color: #075985;
+  font-size: .88rem;
+  font-weight: 600;
+}
+.lodging-matrix-wrap { min-height: 120px; }
+.lodging-matrix-scroll { border: 1px solid rgba(148,163,184,.18); border-radius: 18px; background: rgba(255,255,255,.54); }
+.lodging-matrix-table { min-width: 720px; }
+.lodging-matrix-table th, .lodging-matrix-table td { vertical-align: middle; }
+.lodging-person-head, .lodging-person-cell { position: sticky; left: 0; z-index: 2; background: rgba(248,250,252,.96); min-width: 220px; }
+.lodging-person-cell { z-index: 1; }
+.lodging-person-main { display: flex; align-items: center; gap: 10px; }
+.lodging-person-main > div { display: grid; gap: 2px; }
+.lodging-person-main small { color: var(--muted); font-size: .78rem; font-weight: 600; }
+.small-avatar { width: 34px; height: 34px; font-size: .85rem; }
+.lodging-night-head { min-width: 150px; text-align: center; }
+.lodging-night-head > span { display: block; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; }
+.lodging-night-head > strong { display: block; margin-top: 2px; font-size: .82rem; color: var(--text); }
+.night-toggle-btn { margin-top: 7px; border: 0; border-radius: 999px; padding: 5px 9px; background: rgba(99,102,241,.08); color: #4f46e5; font-size: .7rem; font-weight: 800; }
+.night-toggle-btn:hover { background: rgba(99,102,241,.14); }
+.lodging-check-cell { text-align: center; }
+.lodging-matrix-check { display: inline-grid; justify-items: center; gap: 5px; cursor: pointer; }
+.lodging-matrix-check input { position: absolute; opacity: 0; pointer-events: none; }
+.lodging-check-ui { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid rgba(148,163,184,.48); background: rgba(255,255,255,.9); box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 6px 16px rgba(15,23,42,.06); display: grid; place-items: center; transition: transform .16s ease, background .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.lodging-check-ui::after { content: ""; width: 16px; height: 9px; border-left: 3px solid transparent; border-bottom: 3px solid transparent; transform: rotate(-45deg) translateY(-2px); transition: border-color .16s ease; }
+.lodging-matrix-check:hover .lodging-check-ui { transform: translateY(-1px) scale(1.03); border-color: rgba(79,70,229,.36); }
+.lodging-matrix-check input:checked + .lodging-check-ui { border-color: transparent; background: linear-gradient(135deg,#4f46e5,#06b6d4); box-shadow: 0 9px 20px rgba(79,70,229,.22); }
+.lodging-matrix-check input:checked + .lodging-check-ui::after { border-left-color: #fff; border-bottom-color: #fff; }
+.lodging-matrix-check input:focus-visible + .lodging-check-ui { outline: 3px solid rgba(79,70,229,.18); outline-offset: 3px; }
+.lodging-matrix-check small { min-width: 28px; color: var(--muted); font-size: .72rem; font-weight: 700; }
+.lodging-matrix-check input:checked ~ small { color: #4f46e5; }
+.lodging-row-summary { min-width: 130px; text-align: center; }
+.lodging-save-bar { margin-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 16px; border-radius: 16px; background: rgba(248,250,252,.72); border: 1px solid rgba(148,163,184,.16); }
+.lodging-save-bar > div { display: grid; gap: 3px; }
+.lodging-save-bar span { color: var(--muted); font-size: .82rem; }
+.lodging-empty-state { display: grid; gap: 6px; }
+.lodging-empty-state strong { color: var(--text); }
+.horizontal-guide-list { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.bulk-guide-panel { margin-top: 14px; }
+.settings-feedback { grid-column: 1 / -1; display: grid; gap: 3px; padding: 12px 14px; border-radius: 14px; font-size: .86rem; }
+.settings-feedback span { opacity: .82; }
+.settings-feedback-success { background: rgba(236,253,245,.9); color: #047857; border: 1px solid rgba(16,185,129,.2); }
+.settings-feedback-warning { background: rgba(255,251,235,.92); color: #92400e; border: 1px solid rgba(245,158,11,.22); }
+.settings-feedback-error { background: rgba(254,242,242,.94); color: #b42318; border: 1px solid rgba(239,68,68,.2); }
+@media (max-width: 900px) {
+  .horizontal-guide-list { grid-template-columns: 1fr; }
+  .lodging-save-bar { flex-direction: column; align-items: stretch; }
+  .lodging-save-bar .btn { width: 100%; }
+}
+@media (max-width: 640px) {
+  .lodging-matrix-table { min-width: 640px; }
+  .lodging-person-head, .lodging-person-cell { min-width: 170px; }
+  .lodging-night-head { min-width: 120px; }
+  .toolbar-heading .toolbar-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+}

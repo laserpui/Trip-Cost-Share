@@ -26,8 +26,8 @@
     lodgingExpenseTotal: $("lodgingExpenseTotal"), lodgingExpenseCount: $("lodgingExpenseCount"), openBalance: $("openBalance"),
     participantForm: $("participantForm"), participantName: $("participantName"), drinksAlcohol: $("drinksAlcohol"),
     attendanceDateOptions: $("attendanceDateOptions"), participantList: $("participantList"),
-    lodgingForm: $("lodgingForm"), lodgingParticipantSelect: $("lodgingParticipantSelect"), lodgingParticipantSummary: $("lodgingParticipantSummary"),
-    lodgingNightOptions: $("lodgingNightOptions"), lodgingSaveBtn: $("lodgingSaveBtn"), lodgingTableBody: $("lodgingTableBody"),
+    lodgingBulkForm: $("lodgingBulkForm"), lodgingMatrix: $("lodgingMatrix"), lodgingBulkStatus: $("lodgingBulkStatus"),
+    lodgingSaveAllBtn: $("lodgingSaveAllBtn"), lodgingSelectAllBtn: $("lodgingSelectAllBtn"), lodgingClearAllBtn: $("lodgingClearAllBtn"), lodgingSelectionSummary: $("lodgingSelectionSummary"),
     receiptForm: $("receiptForm"), receiptDate: $("receiptDate"), receiptMerchant: $("receiptMerchant"), receiptTotal: $("receiptTotal"),
     receiptImage: $("receiptImage"), receiptNote: $("receiptNote"), addPayerBtn: $("addPayerBtn"), payerRows: $("payerRows"),
     payerContributionTotal: $("payerContributionTotal"), addLineBtn: $("addLineBtn"), expenseLineRows: $("expenseLineRows"),
@@ -55,6 +55,7 @@
     return `${parts.year}-${parts.month}-${parts.day}`;
   }
   function dateLabel(value) { const date = parseIsoDateUtc(value); return date ? date.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "short", year: "numeric" }) : "-"; }
+  function normalizeSettingDate(value) { const text = String(value || "").trim(); if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text; const date = new Date(text); if (Number.isNaN(date.getTime())) return ""; const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date).filter((part) => part.type !== "literal").map((part) => [part.type, part.value])); return `${parts.year}-${parts.month}-${parts.day}`; }
   function participantById(id) { return state.participants.find((p) => p.id === id); }
   function activeParticipants() { return state.participants.filter((p) => p.active !== false); }
   function buildDateRange(start, end) { const cursor = parseIsoDateUtc(start); const stop = parseIsoDateUtc(end); if (!cursor || !stop) return []; const out = []; while (cursor <= stop && out.length < 31) { out.push(isoFromUtcDate(cursor)); cursor.setUTCDate(cursor.getUTCDate() + 1); } return out; }
@@ -65,8 +66,17 @@
   function setBusy(busy) {
     const closed = String(state.settings?.status || "open") === "closed";
     document.querySelectorAll("button").forEach((button) => {
-      const insideWriteForm = button.closest("#participantForm, #receiptForm, #lodgingForm");
-      button.disabled = Boolean(busy || (closed && insideWriteForm));
+      const insideWriteForm = button.closest("#participantForm, #receiptForm, #lodgingBulkForm, .lodging-matrix-panel");
+      if (busy) {
+        if (!button.disabled) button.dataset.enabledBeforeBusy = "1";
+        button.disabled = true;
+        return;
+      }
+      if (button.dataset.enabledBeforeBusy === "1") {
+        button.disabled = false;
+        delete button.dataset.enabledBeforeBusy;
+      }
+      if (closed && insideWriteForm) button.disabled = true;
     });
   }
 
@@ -79,6 +89,8 @@
   function normalizeState() {
     ["participants", "receipts", "expenseLines", "expenseShares"].forEach((key) => { if (!Array.isArray(state[key])) state[key] = []; });
     state.settings ||= {};
+    state.settings.startDate = normalizeSettingDate(state.settings.startDate);
+    state.settings.endDate = normalizeSettingDate(state.settings.endDate);
   }
 
   async function apiGet(action) {
@@ -117,27 +129,70 @@
     el.participantList.innerHTML = rows.map((p) => `<div class="participant-item participant-v5-item"><div class="participant-meta"><div class="avatar">${esc(p.name.slice(0, 1))}</div><div><div class="participant-name">${esc(p.name)}</div><div class="participant-status">มา ${(p.attendanceDates || []).length} วัน · พัก ${(p.lodgingNights || []).length} คืน · ${p.drinksAlcohol ? "ปกติดื่ม" : "ไม่ดื่ม"}</div></div></div></div>`).join("");
   }
 
-  function renderLodgingEditor() {
-    const currentId = el.lodgingParticipantSelect.value;
-    el.lodgingParticipantSelect.innerHTML = participantOptions(currentId);
-    if (currentId && activeParticipants().some((p) => p.id === currentId)) el.lodgingParticipantSelect.value = currentId;
-    const participant = participantById(el.lodgingParticipantSelect.value);
+  function lodgingCheckboxId(participantId, night) { return `lodging_${String(participantId).replace(/[^a-zA-Z0-9_-]/g, "_")}_${night}`; }
+
+  function renderLodgingMatrix() {
+    const people = activeParticipants();
     const nights = buildNightRange(state.settings.startDate, state.settings.endDate);
-    if (!participant) {
-      el.lodgingParticipantSummary.textContent = activeParticipants().length ? "กรุณาเลือกรายชื่อผู้ร่วมกิจกรรม" : "กรุณาเพิ่มผู้ร่วมกิจกรรมก่อนกำหนดที่พัก";
-      el.lodgingNightOptions.innerHTML = nights.map((d) => `<label class="check-card lodging-card"><input type="checkbox" value="${d}" disabled><span>คืน ${dateLabel(d)}</span></label>`).join("") || `<span class="field-hint">กิจกรรมนี้ไม่มีคืนพัก</span>`;
-      el.lodgingSaveBtn.disabled = true;
+    if (!people.length) {
+      el.lodgingMatrix.innerHTML = `<div class="empty-state lodging-empty-state"><strong>ยังไม่มีผู้ร่วมกิจกรรม</strong><span>กรุณาเพิ่มรายชื่อในหน้า “ผู้ร่วมกิจกรรม” ก่อนกำหนดที่พัก</span></div>`;
+      el.lodgingSelectionSummary.textContent = "ยังไม่มีรายชื่อ";
+      el.lodgingSaveAllBtn.disabled = true;
+      el.lodgingSelectAllBtn.disabled = true;
+      el.lodgingClearAllBtn.disabled = true;
       return;
     }
-    const selected = new Set(participant.lodgingNights || []);
-    el.lodgingParticipantSummary.innerHTML = `<strong>${esc(participant.name)}</strong><span>เข้าร่วม ${(participant.attendanceDates || []).map(dateLabel).join(", ") || "-"}</span>`;
-    el.lodgingNightOptions.innerHTML = nights.map((d) => `<label class="check-card lodging-card"><input type="checkbox" value="${d}" ${selected.has(d) ? "checked" : ""}><span>คืน ${dateLabel(d)}</span></label>`).join("") || `<span class="field-hint">กิจกรรมนี้ไม่มีคืนพัก</span>`;
-    el.lodgingSaveBtn.disabled = String(state.settings.status || "open") === "closed";
+    if (!nights.length) {
+      el.lodgingMatrix.innerHTML = `<div class="empty-state lodging-empty-state"><strong>กิจกรรมนี้ไม่มีคืนพัก</strong><span>ช่วงกิจกรรมมีเพียงวันเดียว จึงไม่มีคืนระหว่างวันเริ่มและวันสิ้นสุด</span></div>`;
+      el.lodgingSelectionSummary.textContent = "0 คืน";
+      el.lodgingSaveAllBtn.disabled = true;
+      el.lodgingSelectAllBtn.disabled = true;
+      el.lodgingClearAllBtn.disabled = true;
+      return;
+    }
+
+    const header = nights.map((night) => `<th class="lodging-night-head"><span>คืน</span><strong>${dateLabel(night)}</strong><button class="night-toggle-btn" type="button" data-night-select="${esc(night)}" title="เลือก/ยกเลิกทั้งคืนนี้">เลือกทั้งคืน</button></th>`).join("");
+    const rows = people.map((person) => {
+      const selected = new Set(person.lodgingNights || []);
+      const cells = nights.map((night) => {
+        const id = lodgingCheckboxId(person.id, night);
+        return `<td class="lodging-check-cell"><label class="lodging-matrix-check" for="${esc(id)}"><input id="${esc(id)}" type="checkbox" data-lodging-person="${esc(person.id)}" data-lodging-night="${esc(night)}" ${selected.has(night) ? "checked" : ""}><span class="lodging-check-ui" aria-hidden="true"></span><small>${selected.has(night) ? "พัก" : "-"}</small></label></td>`;
+      }).join("");
+      return `<tr><th class="lodging-person-cell"><div class="lodging-person-main"><span class="avatar small-avatar">${esc(person.name.slice(0, 1))}</span><div><strong>${esc(person.name)}</strong><small>มา ${(person.attendanceDates || []).length} วัน</small></div></div></th>${cells}<td class="lodging-row-summary" data-lodging-row-summary="${esc(person.id)}"></td></tr>`;
+    }).join("");
+
+    el.lodgingMatrix.innerHTML = `<div class="table-wrap lodging-matrix-scroll"><table class="lodging-matrix-table"><thead><tr><th class="lodging-person-head">ผู้ร่วมกิจกรรม</th>${header}<th>สรุป</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    el.lodgingMatrix.querySelectorAll('input[data-lodging-person]').forEach((input) => input.addEventListener('change', () => { const label = input.closest('.lodging-matrix-check'); const small = label?.querySelector('small'); if (small) small.textContent = input.checked ? 'พัก' : '-'; updateLodgingMatrixSummary(); }));
+    el.lodgingMatrix.querySelectorAll('[data-night-select]').forEach((button) => button.addEventListener('click', () => {
+      const night = button.dataset.nightSelect; const boxes = [...el.lodgingMatrix.querySelectorAll(`input[data-lodging-night="${CSS.escape(night)}"]`)]; const shouldCheck = boxes.some((box) => !box.checked); boxes.forEach((box) => { box.checked = shouldCheck; const small = box.closest('.lodging-matrix-check')?.querySelector('small'); if (small) small.textContent = shouldCheck ? 'พัก' : '-'; }); updateLodgingMatrixSummary();
+    }));
+    const closed = String(state.settings.status || "open") === "closed";
+    el.lodgingMatrix.querySelectorAll('input,button').forEach((node) => { node.disabled = closed; });
+    el.lodgingSaveAllBtn.disabled = closed;
+    el.lodgingSelectAllBtn.disabled = closed;
+    el.lodgingClearAllBtn.disabled = closed;
+    updateLodgingMatrixSummary();
   }
 
-  function renderLodgingTable() {
-    const rows = activeParticipants();
-    el.lodgingTableBody.innerHTML = rows.length ? rows.map((p) => `<tr><td><strong>${esc(p.name)}</strong></td><td>${(p.attendanceDates || []).map(dateLabel).join(", ") || "-"}</td><td>${(p.lodgingNights || []).map((d) => `คืน ${dateLabel(d)}`).join(", ") || "ไม่พัก"}</td><td><span class="status-pill ${p.lodgingNights?.length ? "status-drinker" : "status-nondrinker"}">${p.lodgingNights?.length ? `${p.lodgingNights.length} คืน` : "ไม่ค้างคืน"}</span></td></tr>`).join("") : `<tr><td colspan="4" class="table-empty">ยังไม่มีรายชื่อ</td></tr>`;
+  function updateLodgingMatrixSummary() {
+    if (!el.lodgingMatrix) return;
+    const people = activeParticipants();
+    let totalNights = 0;
+    people.forEach((person) => {
+      const count = el.lodgingMatrix.querySelectorAll(`input[data-lodging-person="${CSS.escape(person.id)}"]:checked`).length;
+      totalNights += count;
+      const cell = el.lodgingMatrix.querySelector(`[data-lodging-row-summary="${CSS.escape(person.id)}"]`);
+      if (cell) cell.innerHTML = count ? `<span class="status-pill status-drinker">${count} คืน</span>` : `<span class="status-pill status-nondrinker">ไม่ค้างคืน</span>`;
+    });
+    const overnightPeople = people.filter((person) => el.lodgingMatrix.querySelectorAll(`input[data-lodging-person="${CSS.escape(person.id)}"]:checked`).length > 0).length;
+    el.lodgingSelectionSummary.textContent = `พักค้างคืน ${overnightPeople} คน · รวม ${totalNights} คน-คืน`;
+  }
+
+  function collectLodgingMatrix() {
+    return activeParticipants().map((person) => ({
+      id: person.id,
+      lodgingNights: [...el.lodgingMatrix.querySelectorAll(`input[data-lodging-person="${CSS.escape(person.id)}"]:checked`)].map((input) => input.dataset.lodgingNight)
+    }));
   }
 
   function addPayerRow(data = {}) {
@@ -245,9 +300,21 @@
     if (IS_DEMO) { state.participants.push({ ...payload, id: uid("p"), lodgingNights: [], active: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); saveDemo(); }
     else Object.assign(state, (await apiPost("addParticipant", payload)).data);
   }
-  async function updateParticipantLodging(id, lodgingNights) {
-    if (IS_DEMO) { const p = participantById(id); if (!p) throw new Error("ไม่พบผู้ร่วมกิจกรรม"); p.lodgingNights = [...lodgingNights]; p.updatedAt = new Date().toISOString(); saveDemo(); }
-    else Object.assign(state, (await apiPost("updateParticipantLodging", { id, lodgingNights })).data);
+  async function updateParticipantsLodgingBatch(items) {
+    if (IS_DEMO) {
+      items.forEach((item) => { const p = participantById(item.id); if (p) { p.lodgingNights = [...item.lodgingNights]; p.updatedAt = new Date().toISOString(); } });
+      saveDemo();
+      return;
+    }
+    try {
+      Object.assign(state, (await apiPost("updateParticipantsLodgingBatch", { items })).data);
+    } catch (error) {
+      // Backward-compatible fallback for an older Apps Script deployment.
+      if (!/Unknown POST action|UNKNOWN_ACTION/i.test(String(error.message || ""))) throw error;
+      let lastData = null;
+      for (const item of items) lastData = (await apiPost("updateParticipantLodging", item)).data;
+      if (lastData) Object.assign(state, lastData);
+    }
   }
   async function addReceipt(payload) {
     if (IS_DEMO) {
@@ -294,7 +361,7 @@
     el.grandTotal.textContent = money(state.receipts.reduce((sum, r) => sum + Number(r.total || 0), 0)); el.receiptCount.textContent = `${state.receipts.length} ใบเสร็จ`;
     const lodgingLines = state.expenseLines.filter((line) => line.category === "lodging"); el.lodgingExpenseTotal.textContent = money(lodgingLines.reduce((sum, line) => sum + Number(line.amount || 0), 0)); el.lodgingExpenseCount.textContent = `${lodgingLines.length} รายการ`;
     const closed = String(state.settings.status || "open") === "closed";
-    [el.participantForm, el.receiptForm, el.lodgingForm].forEach((form) => form?.querySelectorAll("input,select,button").forEach((node) => { node.disabled = closed; }));
+    [el.participantForm, el.receiptForm, el.lodgingBulkForm].forEach((form) => form?.querySelectorAll("input,select,button").forEach((node) => { node.disabled = closed; }));
     if (closed) { setConnection("warning", "กิจกรรมปิดยอดแล้ว"); el.demoBanner.classList.remove("hidden"); el.demoBanner.innerHTML = "<strong>กิจกรรมปิดยอดแล้ว:</strong> สามารถดูและแชร์ข้อมูลได้ แต่ต้องเปิดกิจกรรมจากหน้าหลังบ้านก่อนเพิ่มหรือแก้ข้อมูล"; }
     else if (!IS_DEMO) { el.demoBanner.classList.add("hidden"); setConnection("success", "เชื่อม Google Sheet แล้ว"); }
   }
@@ -304,7 +371,7 @@
     el.expenseLineRows.querySelectorAll(".expense-line-card").forEach((card) => renderLineParticipantOptions(card, card.querySelectorAll(".share-person-check:checked").length > 0));
   }
 
-  function renderAll() { renderAttendanceOptions(); renderHeaderAndCards(); renderParticipants(); renderLodgingEditor(); renderLodgingTable(); renderSelectors(); renderReceipts(); renderSummary(); }
+  function renderAll() { renderAttendanceOptions(); renderHeaderAndCards(); renderParticipants(); renderLodgingMatrix(); renderSelectors(); renderReceipts(); renderSummary(); }
 
   async function shareSection(sectionId, filename) {
     const node = $(sectionId); if (!window.html2canvas) return showToast("ระบบสร้างรูปยังโหลดไม่เสร็จ กรุณาลองอีกครั้ง");
@@ -316,10 +383,16 @@
     setBusy(true); try { await addParticipant({ name: el.participantName.value.trim(), attendanceDates, lodgingNights: [], drinksAlcohol: el.drinksAlcohol.checked }); normalizeState(); resetParticipantForm(); renderAll(); showToast("เพิ่มผู้ร่วมกิจกรรมแล้ว"); } catch (error) { showToast(error.message); } finally { setBusy(false); }
   });
 
-  el.lodgingParticipantSelect.addEventListener("change", renderLodgingEditor);
-  el.lodgingForm.addEventListener("submit", async (event) => {
-    event.preventDefault(); const id = el.lodgingParticipantSelect.value; if (!id) return showToast("กรุณาเลือกรายชื่อผู้ร่วมกิจกรรม"); const lodgingNights = [...el.lodgingNightOptions.querySelectorAll("input:checked")].map((i) => i.value);
-    setBusy(true); try { await updateParticipantLodging(id, lodgingNights); normalizeState(); renderAll(); el.lodgingParticipantSelect.value = id; renderLodgingEditor(); showToast("บันทึกข้อมูลที่พักแล้ว"); } catch (error) { showToast(error.message); } finally { setBusy(false); }
+  el.lodgingSelectAllBtn.addEventListener("click", () => { el.lodgingMatrix.querySelectorAll('input[data-lodging-person]:not(:disabled)').forEach((box) => { box.checked = true; const small = box.closest('.lodging-matrix-check')?.querySelector('small'); if (small) small.textContent = 'พัก'; }); updateLodgingMatrixSummary(); });
+  el.lodgingClearAllBtn.addEventListener("click", () => { el.lodgingMatrix.querySelectorAll('input[data-lodging-person]:not(:disabled)').forEach((box) => { box.checked = false; const small = box.closest('.lodging-matrix-check')?.querySelector('small'); if (small) small.textContent = '-'; }); updateLodgingMatrixSummary(); });
+  el.lodgingBulkForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!activeParticipants().length) return showToast("กรุณาเพิ่มผู้ร่วมกิจกรรมก่อน");
+    const items = collectLodgingMatrix();
+    setBusy(true);
+    try { await updateParticipantsLodgingBatch(items); normalizeState(); renderAll(); showToast("บันทึกข้อมูลที่พักทั้งหมดแล้ว"); }
+    catch (error) { console.error(error); showToast(error.message); }
+    finally { setBusy(false); }
   });
 
   el.receiptDate.addEventListener("change", () => el.expenseLineRows.querySelectorAll(".expense-line-card").forEach((card) => {

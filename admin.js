@@ -15,7 +15,7 @@
     badge: $("adminConnectionBadge"), loginSection: $("adminLoginSection"), app: $("adminApp"), demo: $("adminDemoBanner"),
     loginForm: $("adminLoginForm"), password: $("adminPassword"), refresh: $("adminRefreshBtn"), logout: $("adminLogoutBtn"), toast: $("toast"),
     participantCount: $("adminParticipantCount"), receiptCount: $("adminReceiptCount"), grandTotal: $("adminGrandTotal"), statusText: $("adminStatusText"),
-    settingsForm: $("adminSettingsForm"), eventName: $("adminEventName"), startDate: $("adminStartDate"), endDate: $("adminEndDate"), eventStatus: $("adminEventStatus"),
+    settingsForm: $("adminSettingsForm"), eventName: $("adminEventName"), startDate: $("adminStartDate"), endDate: $("adminEndDate"), eventStatus: $("adminEventStatus"), settingsSubmit: $("adminSettingsSubmitBtn"), settingsFeedback: $("adminSettingsFeedback"),
     participantForm: $("adminParticipantForm"), participantId: $("adminParticipantId"), participantName: $("adminParticipantName"), attendance: $("adminAttendanceOptions"), lodging: $("adminLodgingOptions"), drinks: $("adminDrinksAlcohol"), active: $("adminParticipantActive"), participantSubmit: $("adminParticipantSubmitBtn"), participantCancel: $("adminParticipantCancelBtn"), participantTable: $("adminParticipantTableBody"),
     receiptForm: $("adminReceiptForm"), receiptId: $("adminReceiptId"), receiptDate: $("adminReceiptDate"), receiptMerchant: $("adminReceiptMerchant"), receiptTotal: $("adminReceiptTotal"), receiptImage: $("adminReceiptImage"), receiptNote: $("adminReceiptNote"), existingReceipt: $("adminExistingReceipt"), viewReceipt: $("adminViewReceiptBtn"), removeReceipt: $("adminRemoveReceipt"), addPayer: $("adminAddPayerBtn"), payerRows: $("adminPayerRows"), addLine: $("adminAddLineBtn"), lineRows: $("adminLineRows"), receiptValidation: $("adminReceiptValidation"), receiptSubmit: $("adminReceiptSubmitBtn"), receiptCancel: $("adminReceiptCancelBtn"), receiptTable: $("adminReceiptTableBody")
   };
@@ -43,6 +43,14 @@
   function dateLabel(value) {
     const date = parseIsoDateUtc(value);
     return date ? date.toLocaleDateString("th-TH", { timeZone: "Asia/Bangkok", day: "numeric", month: "short", year: "numeric" }) : "-";
+  }
+  function normalizeSettingDate(value) {
+    const text = String(value || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) return "";
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+    return `${parts.year}-${parts.month}-${parts.day}`;
   }
   function activePeople() { return state.participants.filter((p) => p.active !== false); }
   function person(id) { return state.participants.find((p) => p.id === id); }
@@ -78,7 +86,12 @@
     } catch (error) { showToast(error.message); }
     finally { setBusy(false); }
   }
-  function normalize() { ["participants", "receipts", "expenseLines", "expenseShares"].forEach((key) => { if (!Array.isArray(state[key])) state[key] = []; }); state.settings ||= {}; }
+  function normalize() {
+    ["participants", "receipts", "expenseLines", "expenseShares"].forEach((key) => { if (!Array.isArray(state[key])) state[key] = []; });
+    state.settings ||= {};
+    state.settings.startDate = normalizeSettingDate(state.settings.startDate);
+    state.settings.endDate = normalizeSettingDate(state.settings.endDate);
+  }
 
   function options(selected = "", includeInactive = true) {
     const rows = includeInactive ? state.participants : activePeople();
@@ -202,7 +215,35 @@
   async function deleteReceipt(id) { if (!confirm("ยืนยันการลบใบเสร็จ รายการย่อย ผลการหาร และรูปที่แนบ?")) return; try { await saveAction("adminDeleteReceipt", { id }); renderAll(); showToast("ลบใบเสร็จแล้ว"); } catch (e) { showToast(e.message); } }
 
   el.loginForm.addEventListener("submit", async (event) => { event.preventDefault(); setBusy(true); try { await login(el.password.value); el.loginForm.reset(); } catch (e) { showToast(e.message); } finally { setBusy(false); } });
-  el.settingsForm.addEventListener("submit", async (event) => { event.preventDefault(); setBusy(true); try { await saveAction("adminUpdateSettings", { eventName: el.eventName.value.trim(), startDate: el.startDate.value, endDate: el.endDate.value, status: el.eventStatus.value }); renderAll(); showToast("บันทึกการตั้งค่าแล้ว"); } catch (e) { showToast(e.message); } finally { setBusy(false); } });
+  el.settingsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = { eventName: el.eventName.value.trim(), startDate: el.startDate.value, endDate: el.endDate.value, status: el.eventStatus.value };
+    el.settingsFeedback.className = "settings-feedback hidden";
+    if (!payload.eventName || !payload.startDate || !payload.endDate) return showToast("กรุณากรอกข้อมูลกิจกรรมให้ครบ");
+    if (payload.endDate < payload.startDate) return showToast("วันสิ้นสุดต้องไม่ก่อนวันเริ่ม");
+    setBusy(true);
+    try {
+      try { await saveAction("adminUpdateSettings", payload); }
+      catch (firstError) {
+        if (/Unknown POST action|UNKNOWN_ACTION/i.test(String(firstError.message || ""))) await saveAction("adminSaveSettings", payload);
+        else throw firstError;
+      }
+      normalize();
+      const saved = state.settings || {};
+      const verified = saved.eventName === payload.eventName && saved.startDate === payload.startDate && saved.endDate === payload.endDate && saved.status === payload.status;
+      renderAll();
+      el.settingsFeedback.className = `settings-feedback ${verified ? "settings-feedback-success" : "settings-feedback-warning"}`;
+      el.settingsFeedback.innerHTML = verified
+        ? `<strong>บันทึกกิจกรรมสำเร็จ</strong><span>${esc(saved.eventName)} · ${dateLabel(saved.startDate)} – ${dateLabel(saved.endDate)}</span>`
+        : `<strong>บันทึกแล้ว แต่ข้อมูลตอบกลับไม่ตรงกับที่กรอก</strong><span>กรุณา Deploy Apps Script v5.5 เป็น New version แล้วรีเฟรชหน้า Admin</span>`;
+      showToast(verified ? "บันทึกกิจกรรมเรียบร้อย" : "กรุณาตรวจสอบ Apps Script Deployment");
+    } catch (e) {
+      console.error(e);
+      el.settingsFeedback.className = "settings-feedback settings-feedback-error";
+      el.settingsFeedback.innerHTML = `<strong>บันทึกกิจกรรมไม่สำเร็จ</strong><span>${esc(e.message || "เกิดข้อผิดพลาด")}</span>`;
+      showToast(e.message || "บันทึกกิจกรรมไม่สำเร็จ");
+    } finally { setBusy(false); }
+  });
   el.participantForm.addEventListener("submit", async (event) => { event.preventDefault(); const attendanceDates = [...el.attendance.querySelectorAll("input:checked")].map((x) => x.value); const lodgingNights = [...el.lodging.querySelectorAll("input:checked")].map((x) => x.value); const existing = person(el.participantId.value); const payload = { id: el.participantId.value || uid("p"), name: el.participantName.value.trim(), attendanceDates, lodgingNights, drinksAlcohol: el.drinks.checked, active: el.active.checked, createdAt: existing?.createdAt }; setBusy(true); try { await saveAction("adminSaveParticipant", payload); resetParticipant(); renderAll(); showToast("บันทึกรายชื่อแล้ว"); } catch (e) { showToast(e.message); } finally { setBusy(false); } });
   el.receiptForm.addEventListener("submit", async (event) => { event.preventDefault(); const payload = collectReceipt(); const errors = validateReceipt(payload); el.receiptValidation.classList.toggle("hidden", !errors.length); el.receiptValidation.innerHTML = errors.length ? `<strong>กรุณาตรวจสอบ:</strong><ul>${errors.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""; if (errors.length) return; setBusy(true); try { payload.receiptImage = await imagePayload(el.receiptImage.files[0]); const existing = state.receipts.find((x) => x.id === payload.id); payload.createdAt = existing?.createdAt; await saveAction("adminSaveReceipt", payload); resetReceipt(); renderAll(); showToast("บันทึกใบเสร็จแล้ว"); } catch (e) { showToast(e.message); } finally { setBusy(false); } });
 

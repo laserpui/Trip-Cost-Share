@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#E5FFFF">
-  <title>Admin Console · Trip Cost Share v5.4</title>
+  <title>Admin Console · Trip Cost Share v5.5</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -48,7 +48,7 @@
 
         <section class="admin-page" data-admin-page="settings">
           <div class="page-intro-card panel"><div class="page-intro-icon"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.4 3.1a7 7 0 0 0-1.7 1L5 6.1 3 9.5 5 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 3.1h5l.4-3.1a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1Z"/></svg></div><div><span class="section-badge">EVENT CONFIGURATION</span><h2>ตั้งค่ากิจกรรม</h2><p>กำหนดชื่อ ช่วงวันที่ และสถานะการเปิดรับข้อมูล</p></div></div>
-          <section class="panel"><div class="panel-heading"><div><h2>ข้อมูลกิจกรรม</h2><p>ก่อนเปลี่ยนช่วงวันที่ควรตรวจวันเข้าร่วมและคืนพักที่บันทึกไว้</p></div></div><form id="adminSettingsForm" class="settings-grid"><label class="field"><span>ชื่อกิจกรรม</span><input id="adminEventName" type="text" maxlength="100" required></label><label class="field"><span>วันเริ่ม</span><input id="adminStartDate" type="date" required></label><label class="field"><span>วันสิ้นสุด</span><input id="adminEndDate" type="date" required></label><label class="field"><span>สถานะ</span><select id="adminEventStatus"><option value="open">เปิดรับข้อมูล</option><option value="closed">ปิดยอด/ล็อกกิจกรรม</option></select></label><button class="btn btn-primary" type="submit">บันทึกการตั้งค่า</button></form></section>
+          <section class="panel"><div class="panel-heading"><div><h2>ข้อมูลกิจกรรม</h2><p>ก่อนเปลี่ยนช่วงวันที่ควรตรวจวันเข้าร่วมและคืนพักที่บันทึกไว้</p></div></div><form id="adminSettingsForm" class="settings-grid"><label class="field"><span>ชื่อกิจกรรม</span><input id="adminEventName" type="text" maxlength="100" required></label><label class="field"><span>วันเริ่ม</span><input id="adminStartDate" type="date" required></label><label class="field"><span>วันสิ้นสุด</span><input id="adminEndDate" type="date" required></label><label class="field"><span>สถานะ</span><select id="adminEventStatus"><option value="open">เปิดรับข้อมูล</option><option value="closed">ปิดยอด/ล็อกกิจกรรม</option></select></label><button id="adminSettingsSubmitBtn" class="btn btn-primary" type="submit">บันทึกกิจกรรม</button><div id="adminSettingsFeedback" class="settings-feedback hidden" role="status" aria-live="polite"></div></form></section>
         </section>
 
         <section class="admin-page" data-admin-page="participants">

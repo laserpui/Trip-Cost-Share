@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#E5FFFF">
   <meta name="description" content="ระบบจัดการผู้ร่วมกิจกรรม ที่พัก ค่าใช้จ่าย และสรุปยอดรายบุคคล">
-  <title>Trip Cost Share v5.4</title>
+  <title>Trip Cost Share v5.5</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -146,23 +146,36 @@
 
         <!-- Lodging -->
         <section class="app-page" data-page="lodging">
-          <div class="page-intro-card panel lodging-intro"><div class="page-intro-icon lodging"><svg viewBox="0 0 24 24" fill="none"><path d="M3 19v-8h18v8M5 11V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4M13 8h5a3 3 0 0 1 3 3M3 16h18M6 19v2M18 19v2"/></svg></div><div><span class="section-badge">LODGING</span><h2>บันทึกข้อมูลที่พัก</h2><p>เลือกสมาชิกที่บันทึกไว้แล้ว จากนั้นกำหนดเฉพาะคืนที่พักจริง</p></div></div>
-
-          <div class="content-grid lodging-page-grid">
-            <article class="panel form-panel">
-              <div class="panel-heading"><div><h2>กำหนดคืนที่พัก</h2><p>สามารถกลับมาแก้ไขคืนพักได้โดยไม่ต้องสร้างรายชื่อใหม่</p></div></div>
-              <form id="lodgingForm" class="form-grid">
-                <label class="field"><span>ผู้ร่วมกิจกรรม</span><select id="lodgingParticipantSelect" required><option value="">เลือกรายชื่อ</option></select></label>
-                <div id="lodgingParticipantSummary" class="participant-context-card">กรุณาเลือกรายชื่อผู้ร่วมกิจกรรม</div>
-                <fieldset class="choice-fieldset lodging-fieldset"><legend>คืนที่เข้าพัก</legend><div id="lodgingNightOptions" class="checkbox-grid"></div></fieldset>
-                <button id="lodgingSaveBtn" class="btn btn-primary btn-wide" type="submit">บันทึกข้อมูลที่พัก</button>
-              </form>
-            </article>
-
-            <aside class="panel lodging-guide-panel"><div class="panel-heading"><div><h2>หลักการคิดค่าที่พัก</h2><p>ระบบจะใช้คืนพักที่บันทึกไว้เมื่อเลือกวิธีหาร “ผู้ที่พักคืนนั้น”</p></div></div><div class="guide-list"><div class="guide-item"><span>1</span><div><strong>มาแต่ไม่ค้างคืน</strong><p>ไม่ต้องเลือกคืนใดเลย</p></div></div><div class="guide-item"><span>2</span><div><strong>พักบางคืน</strong><p>เลือกเฉพาะคืนที่พักจริง แม้มาร่วมกิจกรรมหลายวัน</p></div></div><div class="guide-item"><span>3</span><div><strong>ค่าที่พักในใบเสร็จ</strong><p>เลือกวิธีหาร “ผู้ที่พักในคืนที่เลือก” และระบุคืนอ้างอิงให้ตรงกัน</p></div></div></div></aside>
+          <div class="page-intro-card panel lodging-intro">
+            <div class="page-intro-icon lodging"><svg viewBox="0 0 24 24" fill="none"><path d="M3 19v-8h18v8M5 11V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4M13 8h5a3 3 0 0 1 3 3M3 16h18M6 19v2M18 19v2"/></svg></div>
+            <div><span class="section-badge">LODGING</span><h2>บันทึกข้อมูลที่พัก</h2><p>กำหนดคืนพักของผู้ร่วมกิจกรรมทุกคนจากตารางเดียว แล้วบันทึกพร้อมกัน</p></div>
           </div>
 
-          <section class="panel"><div class="panel-heading"><div><h2>สถานะที่พักของผู้ร่วมกิจกรรม</h2><p>ใช้ตรวจสอบก่อนบันทึกค่าใช้จ่ายที่พัก</p></div></div><div class="table-wrap"><table><thead><tr><th>ชื่อ</th><th>วันที่เข้าร่วม</th><th>คืนที่พัก</th><th>สถานะ</th></tr></thead><tbody id="lodgingTableBody"><tr><td colspan="4" class="table-empty">ยังไม่มีรายชื่อ</td></tr></tbody></table></div></section>
+          <section class="panel lodging-matrix-panel">
+            <div class="panel-heading toolbar-heading">
+              <div><h2>ตารางกำหนดคืนที่พัก</h2><p>ติ๊กเฉพาะคืนที่แต่ละคนพักจริง ผู้ที่มาแต่ไม่ค้างคืนไม่ต้องเลือกช่องใด</p></div>
+              <div class="toolbar-actions"><button id="lodgingSelectAllBtn" class="btn btn-secondary" type="button">เลือกทุกช่อง</button><button id="lodgingClearAllBtn" class="btn btn-secondary" type="button">ล้างทั้งหมด</button></div>
+            </div>
+            <div id="lodgingBulkStatus" class="info-banner">ระบบจะใช้ข้อมูลนี้เมื่อเลือกรูปแบบหารค่าใช้จ่าย “ผู้ที่พักในคืนที่เลือก”</div>
+            <form id="lodgingBulkForm">
+              <div id="lodgingMatrix" class="lodging-matrix-wrap">
+                <div class="table-empty">กำลังโหลดข้อมูลที่พัก</div>
+              </div>
+              <div class="lodging-save-bar">
+                <div><strong>ตรวจสอบให้ครบก่อนบันทึก</strong><span id="lodgingSelectionSummary">ยังไม่มีข้อมูล</span></div>
+                <button id="lodgingSaveAllBtn" class="btn btn-primary" type="submit">บันทึกข้อมูลที่พักทั้งหมด</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel lodging-guide-panel bulk-guide-panel">
+            <div class="panel-heading"><div><h2>หลักการคิดค่าที่พัก</h2><p>แยก “วันที่เข้าร่วม” ออกจาก “คืนที่พัก” เพื่อไม่คิดค่าที่พักกับผู้ที่ไม่ได้ค้างคืน</p></div></div>
+            <div class="guide-list horizontal-guide-list">
+              <div class="guide-item"><span>1</span><div><strong>มาแต่ไม่ค้างคืน</strong><p>ปล่อยทุกช่องว่าง ระบบจะไม่คิดค่าที่พักแบบรายคืนให้บุคคลนั้น</p></div></div>
+              <div class="guide-item"><span>2</span><div><strong>พักบางคืน</strong><p>เลือกเฉพาะคืนที่พักจริง แม้เข้าร่วมกิจกรรมหลายวัน</p></div></div>
+              <div class="guide-item"><span>3</span><div><strong>บันทึกใบเสร็จที่พัก</strong><p>เลือกวิธีหาร “ผู้ที่พักในคืนที่เลือก” แล้วระบุคืนอ้างอิงให้ตรงกับตารางนี้</p></div></div>
+            </div>
+          </section>
         </section>
       </main>
 
