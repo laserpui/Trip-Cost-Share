@@ -37,7 +37,7 @@
     if ($("currentPageKicker")) $("currentPageKicker").textContent = m.kicker;
     if ($("currentPageTitle")) $("currentPageTitle").textContent = m.title;
     if ($("currentPageDescription")) $("currentPageDescription").textContent = m.description;
-    document.title = `${m.title} · Trip Cost Share v5.6.1`;
+    document.title = `${m.title} · Trip Cost Share v5.8`;
     if (updateHash && location.hash !== `#${page}`) history.replaceState(null, "", `#${page}`);
     closeSidebar();
     window.scrollTo(0, 0);

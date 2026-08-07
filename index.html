@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#E5FFFF">
   <meta name="description" content="ระบบจัดการผู้ร่วมกิจกรรม ค่าใช้จ่าย และสรุปยอดรายบุคคล">
-  <title>Trip Cost Share v5.6.1</title>
+  <title>Trip Cost Share v5.8</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -121,13 +121,13 @@
           <div class="page-intro-card panel expense-intro"><div class="page-intro-icon expense"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></div><div><span class="section-badge">EXPENSE WORKSPACE</span><h2>บันทึกค่าใช้จ่ายและใบเสร็จ</h2><p>หนึ่งใบเสร็จสามารถแยกหลายรายการและใช้วิธีหารต่างกันได้</p></div></div>
 
           <article class="panel receipt-builder-panel">
-            <div class="panel-heading"><div><h2>บันทึกใบเสร็จ</h2><p>ยอดผู้สำรองจ่ายและรายการย่อยต้องรวมตรงกับยอดใบเสร็จ</p></div><span class="status-chip">Draft</span></div>
+            <div class="panel-heading"><div><h2>บันทึกใบเสร็จ</h2><p>กรอกยอดใบเสร็จเพียงครั้งเดียว หากมีผู้จ่ายคนเดียวระบบจะใช้ยอดนั้นอัตโนมัติ</p></div><span class="status-chip">Draft</span></div>
             <form id="receiptForm" class="form-grid">
               <div class="field-row"><label class="field"><span>วันที่ใบเสร็จ</span><input id="receiptDate" type="date" required></label><label class="field"><span>ร้านค้า/ผู้ให้บริการ</span><input id="receiptMerchant" type="text" maxlength="120" placeholder="เช่น ร้านอาหาร ABC" required></label></div>
               <div class="field-row"><label class="field"><span>ยอดรวมใบเสร็จ (บาท)</span><input id="receiptTotal" type="number" min="0.01" step="0.01" placeholder="0.00" required></label><label class="field"><span>แนบรูปใบเสร็จ</span><input id="receiptImage" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"></label></div>
               <label class="field"><span>หมายเหตุใบเสร็จ</span><input id="receiptNote" type="text" maxlength="180" placeholder="ไม่บังคับ"></label>
 
-              <section class="builder-block"><div class="builder-heading"><div><h3>ผู้สำรองจ่าย</h3><p>รองรับผู้จ่ายมากกว่าหนึ่งคน</p></div><button id="addPayerBtn" class="btn btn-secondary" type="button">เพิ่มผู้จ่าย</button></div><div id="payerRows" class="dynamic-list"></div><div class="builder-total-row"><span>รวมผู้สำรองจ่าย</span><strong id="payerContributionTotal">฿0.00</strong></div></section>
+              <div id="payerBuilderBlock" class="payer-inline-block single-payer-mode"><div class="builder-heading"><div><h3>ผู้ชำระเงิน</h3><p id="payerModeHint">เลือกชื่อผู้จ่าย ระบบจะใช้ยอดรวมใบเสร็จให้อัตโนมัติ</p></div><button id="addPayerBtn" class="btn btn-secondary" type="button">มีผู้จ่ายหลายคน</button></div><div id="payerRows" class="dynamic-list"></div><div class="builder-total-row payer-total-row"><span>รวมผู้สำรองจ่าย</span><strong id="payerContributionTotal">฿0.00</strong></div></div>
 
               <section class="builder-block"><div class="builder-heading"><div><h3>รายการย่อยในใบเสร็จ</h3><p>กำหนดหมวด วิธีหาร และผู้ร่วมรับผิดชอบของแต่ละรายการ</p></div><button id="addLineBtn" class="btn btn-secondary" type="button">เพิ่มรายการย่อย</button></div><div id="expenseLineRows" class="dynamic-list expense-lines"></div><div class="builder-total-row"><span>รวมรายการย่อย</span><strong id="lineTotal">฿0.00</strong></div></section>
 

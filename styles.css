@@ -105,3 +105,72 @@
   .lodging-night-head { min-width: 120px; }
   .toolbar-heading .toolbar-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
 }
+
+/* =========================================================
+   v5.8 Receipt payer UX
+   Single payer uses the receipt total automatically.
+   ========================================================= */
+#payerBuilderBlock.single-payer-mode .payer-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#payerBuilderBlock.single-payer-mode .payer-row .field:has(.payer-amount),
+#payerBuilderBlock.single-payer-mode .payer-row .remove-row-btn,
+#payerBuilderBlock.single-payer-mode .payer-total-row {
+  display: none !important;
+}
+
+#payerBuilderBlock.single-payer-mode .payer-row {
+  padding-bottom: 2px;
+}
+
+#payerBuilderBlock.single-payer-mode::after {
+  content: "ยอดผู้จ่าย = ยอดรวมใบเสร็จอัตโนมัติ";
+  display: block;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(79, 70, 229, 0.07);
+  color: #4338ca;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+#payerBuilderBlock:not(.single-payer-mode) .payer-total-row {
+  display: flex;
+}
+
+@media (max-width: 720px) {
+  #payerBuilderBlock.single-payer-mode .payer-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.payer-inline-block {
+  padding: 14px 0 4px;
+  border-top: 1px dashed rgba(100, 116, 139, 0.18);
+}
+
+.payer-inline-block .builder-heading {
+  margin-bottom: 10px;
+}
+
+.payer-inline-block.single-payer-mode {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.expense-line-card.single-line-auto-amount .line-amount {
+  background: rgba(79, 70, 229, 0.055);
+  color: #4338ca;
+  font-weight: 800;
+  cursor: default;
+}
+
+.expense-line-card.single-line-auto-amount .field:has(.line-amount)::after {
+  content: "ใช้ยอดรวมใบเสร็จอัตโนมัติ";
+  color: #6366f1;
+  font-size: 0.76rem;
+  font-weight: 700;
+}

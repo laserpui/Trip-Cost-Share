@@ -30,7 +30,7 @@
     attendanceDateOptions: $("attendanceDateOptions"), lodgingNightOptions: $("lodgingNightOptions"), participantList: $("participantList"),
     receiptForm: $("receiptForm"), receiptDate: $("receiptDate"), receiptMerchant: $("receiptMerchant"), receiptTotal: $("receiptTotal"),
     receiptImage: $("receiptImage"), receiptNote: $("receiptNote"), addPayerBtn: $("addPayerBtn"), payerRows: $("payerRows"),
-    payerContributionTotal: $("payerContributionTotal"), addLineBtn: $("addLineBtn"), expenseLineRows: $("expenseLineRows"),
+    payerContributionTotal: $("payerContributionTotal"), payerBuilderBlock: $("payerBuilderBlock"), payerModeHint: $("payerModeHint"), addLineBtn: $("addLineBtn"), expenseLineRows: $("expenseLineRows"),
     lineTotal: $("lineTotal"), receiptValidation: $("receiptValidation"), previewReceiptBtn: $("previewReceiptBtn"),
     receiptSubmitBtn: $("receiptSubmitBtn"), previewSection: $("previewSection"), previewContent: $("previewContent"),
     receiptCards: $("receiptCards"), receiptShareTitle: $("receiptShareTitle"), receiptShareSubtitle: $("receiptShareSubtitle"),
@@ -127,7 +127,7 @@
     return result;
   }
   async function apiPost(action, payload) {
-    const delays = [0, 450, 900, 1500];
+    const delays = [0, 250, 500, 900, 1400, 2000];
     let lastError = null;
     for (let attempt = 0; attempt < delays.length; attempt++) {
       if (delays[attempt]) await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
@@ -207,8 +207,29 @@
   function addPayerRow(data = {}) {
     const fragment = $("payerRowTemplate").content.cloneNode(true); const row = fragment.querySelector(".payer-row");
     row.querySelector(".payer-person").innerHTML = participantOptions(data.participantId || ""); row.querySelector(".payer-amount").value = data.amount || "";
-    row.querySelector(".remove-row-btn").addEventListener("click", () => { if (el.payerRows.children.length <= 1) return showToast("ต้องมีผู้สำรองจ่ายอย่างน้อย 1 คน"); row.remove(); updateBuilderTotals(); });
-    row.querySelectorAll("input,select").forEach((node) => node.addEventListener("input", updateBuilderTotals)); el.payerRows.appendChild(fragment);
+    row.querySelector(".remove-row-btn").addEventListener("click", () => { if (el.payerRows.children.length <= 1) return showToast("ต้องมีผู้สำรองจ่ายอย่างน้อย 1 คน"); row.remove(); syncPayerMode(); updateBuilderTotals(); });
+    row.querySelectorAll("input,select").forEach((node) => node.addEventListener("input", updateBuilderTotals)); el.payerRows.appendChild(fragment); syncPayerMode();
+  }
+
+  function syncPayerMode() {
+    const rows = [...el.payerRows.querySelectorAll(".payer-row")];
+    const single = rows.length === 1;
+    el.payerBuilderBlock?.classList.toggle("single-payer-mode", single);
+    if (el.payerModeHint) el.payerModeHint.textContent = single ? "เลือกชื่อผู้จ่าย ระบบจะใช้ยอดรวมใบเสร็จให้อัตโนมัติ" : "แบ่งยอดตามจำนวนเงินจริงที่แต่ละคนสำรองจ่าย ยอดรวมต้องตรงกับใบเสร็จ";
+    if (el.addPayerBtn) el.addPayerBtn.textContent = single ? "มีผู้จ่ายหลายคน" : "เพิ่มผู้จ่าย";
+    rows.forEach((row, index) => {
+      row.classList.toggle("single-payer-row", single);
+      const amount = row.querySelector(".payer-amount");
+      const remove = row.querySelector(".remove-row-btn");
+      if (single) {
+        amount.value = el.receiptTotal.value || "";
+        amount.tabIndex = -1;
+        remove.disabled = true;
+      } else {
+        amount.tabIndex = 0;
+        remove.disabled = false;
+      }
+    });
   }
 
   function participantShareOptionHtml(participant, mode, selectedIds = [], values = {}) {
@@ -243,7 +264,7 @@
     const fragment = $("expenseLineTemplate").content.cloneNode(true); const card = fragment.querySelector(".expense-line-card");
     card.dataset.lineId = data.id || uid("line"); card.querySelector(".line-description").value = data.description || ""; card.querySelector(".line-category").value = data.category || "food"; card.querySelector(".line-amount").value = data.amount || ""; card.querySelector(".line-split-mode").value = data.splitMode || "attendance_date"; card.querySelector(".line-service-date").value = data.serviceDate || el.receiptDate.value;
     card._initialSelection = { selectedIds: data.selectedParticipantIds || [], values: data.weights || data.manualShares || {} };
-    card.querySelector(".remove-line-btn").addEventListener("click", () => { if (el.expenseLineRows.children.length <= 1) return showToast("ต้องมีรายการย่อยอย่างน้อย 1 รายการ"); card.remove(); renumberLines(); updateBuilderTotals(); });
+    card.querySelector(".remove-line-btn").addEventListener("click", () => { if (el.expenseLineRows.children.length <= 1) return showToast("ต้องมีรายการย่อยอย่างน้อย 1 รายการ"); card.remove(); renumberLines(); syncExpenseLineAmountMode(); updateBuilderTotals(); });
     card.querySelectorAll(".line-description,.line-amount").forEach((node) => node.addEventListener("input", () => { refreshLinePreview(card); updateBuilderTotals(); }));
     card.querySelector(".line-category").addEventListener("change", () => renderLineParticipantOptions(card, false));
     card.querySelector(".line-split-mode").addEventListener("change", () => { updateLineModeUi(card); renderLineParticipantOptions(card, false); });
@@ -255,7 +276,19 @@
       container.querySelectorAll(".share-person-check").forEach((check) => check.addEventListener("change", () => { const input = container.querySelector(`.share-person-value[data-person-id="${CSS.escape(check.value)}"]`); if (input) input.disabled = !check.checked; refreshLinePreview(card); }));
       container.querySelectorAll(".share-person-value").forEach((input) => input.addEventListener("input", () => refreshLinePreview(card))); refreshLinePreview(card);
     } else renderLineParticipantOptions(card, false);
-    renumberLines(); updateBuilderTotals();
+    renumberLines(); syncExpenseLineAmountMode(); updateBuilderTotals();
+  }
+
+  function syncExpenseLineAmountMode() {
+    const cards = [...el.expenseLineRows.querySelectorAll(".expense-line-card")];
+    const single = cards.length === 1;
+    cards.forEach((card) => {
+      const input = card.querySelector(".line-amount");
+      card.classList.toggle("single-line-auto-amount", single);
+      input.readOnly = single;
+      if (single) input.value = el.receiptTotal.value || "";
+      refreshLinePreview(card);
+    });
   }
 
   function updateLineModeUi(card) {
@@ -285,9 +318,9 @@
   function collectLine(card) { const mode = card.querySelector(".line-split-mode").value; const selection = collectParticipantSelection(card); return { id: card.dataset.lineId, description: card.querySelector(".line-description").value.trim(), category: card.querySelector(".line-category").value, amount: Number(card.querySelector(".line-amount").value || 0), splitMode: mode, serviceDate: card.querySelector(".line-service-date").value || el.receiptDate.value, selectedParticipantIds: selection.selectedIds, weights: mode === "weighted" ? selection.values : {}, manualShares: mode === "manual" ? selection.values : {} }; }
   function refreshLinePreview(card) { const line = collectLine(card); const result = calculateLineShares(line); const preview = card.querySelector(".line-preview"); if (!line.amount) return preview.innerHTML = ""; if (result.error) return preview.innerHTML = `<div class="inline-error">${esc(result.error)}</div>`; preview.innerHTML = `<div class="mini-share-list">${Object.entries(result.shares).map(([id, amount]) => `<span>${esc(participantById(id)?.name || id)} <strong>${money(amount)}</strong></span>`).join("")}</div>`; }
   function renumberLines() { [...el.expenseLineRows.querySelectorAll(".expense-line-card")].forEach((card, i) => { card.querySelector(".line-number").textContent = `รายการที่ ${i + 1}`; }); }
-  function updateBuilderTotals() { el.payerContributionTotal.textContent = money([...el.payerRows.querySelectorAll(".payer-amount")].reduce((s, i) => s + Number(i.value || 0), 0)); el.lineTotal.textContent = money([...el.expenseLineRows.querySelectorAll(".line-amount")].reduce((s, i) => s + Number(i.value || 0), 0)); }
+  function updateBuilderTotals() { const payerRows = [...el.payerRows.querySelectorAll(".payer-row")]; if (payerRows.length === 1) payerRows[0].querySelector(".payer-amount").value = el.receiptTotal.value || ""; const lineInputs = [...el.expenseLineRows.querySelectorAll(".line-amount")]; if (lineInputs.length === 1) lineInputs[0].value = el.receiptTotal.value || ""; el.payerContributionTotal.textContent = money(payerRows.reduce((sum, row) => sum + Number(row.querySelector(".payer-amount").value || 0), 0)); el.lineTotal.textContent = money(lineInputs.reduce((s, i) => s + Number(i.value || 0), 0)); }
 
-  function collectReceiptForm() { return { id: uid("receipt"), date: el.receiptDate.value, merchant: el.receiptMerchant.value.trim(), total: round2(el.receiptTotal.value), note: el.receiptNote.value.trim(), payerContributions: [...el.payerRows.querySelectorAll(".payer-row")].map((row) => ({ participantId: row.querySelector(".payer-person").value, amount: round2(row.querySelector(".payer-amount").value) })), lines: [...el.expenseLineRows.querySelectorAll(".expense-line-card")].map(collectLine) }; }
+  function collectReceiptForm() { const total = round2(el.receiptTotal.value); const payerRows = [...el.payerRows.querySelectorAll(".payer-row")]; const payerContributions = payerRows.map((row) => ({ participantId: row.querySelector(".payer-person").value, amount: payerRows.length === 1 ? total : round2(row.querySelector(".payer-amount").value) })); return { id: uid("receipt"), date: el.receiptDate.value, merchant: el.receiptMerchant.value.trim(), total, note: el.receiptNote.value.trim(), payerContributions, lines: [...el.expenseLineRows.querySelectorAll(".expense-line-card")].map(collectLine) }; }
   function validateReceipt(receipt) {
     const errors = []; if (!activeParticipants().length) errors.push("กรุณาเพิ่มผู้ร่วมกิจกรรมก่อนบันทึกค่าใช้จ่าย"); if (!receipt.date) errors.push("กรุณาระบุวันที่ใบเสร็จ"); if (!receipt.merchant) errors.push("กรุณาระบุร้านค้าหรือผู้ให้บริการ"); if (!(receipt.total > 0)) errors.push("ยอดรวมใบเสร็จต้องมากกว่า 0"); if (!receipt.payerContributions.length) errors.push("ต้องมีผู้สำรองจ่ายอย่างน้อย 1 คน");
     receipt.payerContributions.forEach((p, i) => { if (!p.participantId || !(p.amount > 0)) errors.push(`ข้อมูลผู้จ่ายลำดับ ${i + 1} ไม่ครบ`); });
@@ -356,7 +389,7 @@
   }
 
   function resetParticipantForm() { el.participantForm.reset(); renderAttendanceOptions(); renderLodgingOptions(); }
-  function resetReceiptForm() { el.receiptForm.reset(); el.receiptDate.value = state.settings.startDate || isoToday(); el.payerRows.innerHTML = ""; el.expenseLineRows.innerHTML = ""; addPayerRow(); addExpenseLine(); updateBuilderTotals(); el.previewSection.classList.add("hidden"); el.receiptValidation.classList.add("hidden"); }
+  function resetReceiptForm() { el.receiptForm.reset(); el.receiptDate.value = state.settings.startDate || isoToday(); el.payerRows.innerHTML = ""; el.expenseLineRows.innerHTML = ""; addPayerRow(); addExpenseLine(); syncPayerMode(); syncExpenseLineAmountMode(); updateBuilderTotals(); el.previewSection.classList.add("hidden"); el.receiptValidation.classList.add("hidden"); }
 
   function calculateSummary() {
     const participants = activeParticipants(); const responsibility = Object.fromEntries(participants.map((p) => [p.id, 0])); const paid = Object.fromEntries(participants.map((p) => [p.id, 0]));
@@ -419,8 +452,8 @@
     if (mode === "attendance_date") renderLineParticipantOptions(card, false);
     if (mode === "lodging_night") { updateLineModeUi(card); renderLineParticipantOptions(card, false); }
   }));
-  el.receiptTotal.addEventListener("input", updateBuilderTotals); el.addPayerBtn.addEventListener("click", () => addPayerRow()); el.addLineBtn.addEventListener("click", () => addExpenseLine()); el.previewReceiptBtn.addEventListener("click", showReceiptPreview);
-  el.receiptForm.addEventListener("submit", async (event) => { event.preventDefault(); const receipt = collectReceiptForm(); const errors = validateReceipt(receipt); if (errors.length) { showReceiptPreview(); return showToast("กรุณาแก้ข้อมูลก่อนบันทึก"); } setBusy(true); try { receipt.receiptImage = await fileToReceiptPayload(el.receiptImage.files[0]); await addReceipt(receipt); normalizeState(); renderAll(); resetReceiptForm(); showToast("บันทึกใบเสร็จและผลการหารแล้ว"); } catch (error) { console.error(error); showToast(error.message); } finally { setBusy(false); } });
+  el.receiptTotal.addEventListener("input", () => { syncPayerMode(); syncExpenseLineAmountMode(); updateBuilderTotals(); }); el.addPayerBtn.addEventListener("click", () => { addPayerRow(); syncPayerMode(); updateBuilderTotals(); }); el.addLineBtn.addEventListener("click", () => { addExpenseLine(); syncExpenseLineAmountMode(); updateBuilderTotals(); }); el.previewReceiptBtn.addEventListener("click", showReceiptPreview);
+  el.receiptForm.addEventListener("submit", async (event) => { event.preventDefault(); const receipt = collectReceiptForm(); const errors = validateReceipt(receipt); if (errors.length) { showReceiptPreview(); return showToast("กรุณาแก้ข้อมูลก่อนบันทึก"); } setBusy(true); try { receipt.receiptImage = await fileToReceiptPayload(el.receiptImage.files[0]); await addReceipt(receipt); normalizeState(); renderAll(); resetReceiptForm(); showToast("บันทึกใบเสร็จและผลการหารแล้ว"); } catch (error) { console.error(error); el.receiptValidation.classList.remove("hidden"); el.receiptValidation.innerHTML = `<strong>บันทึกไม่สำเร็จ:</strong> ${esc(error.message || "เกิดข้อผิดพลาด")}`; showToast(error.message || "บันทึกค่าใช้จ่ายไม่สำเร็จ"); } finally { setBusy(false); } });
 
   el.shareReceiptsBtn.addEventListener("click", () => shareSection("receiptShareSection", "expense-receipts.png")); el.shareSummaryBtn.addEventListener("click", () => shareSection("summaryShareSection", "expense-summary.png")); el.refreshBtn.addEventListener("click", () => loadData({ allowSnapshot: false, forceFresh: true }));
 
