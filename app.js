@@ -486,12 +486,157 @@
     el.receiptForm.reset(); el.receiptDate.value=state.settings.startDate||isoToday(); el.payerRows.innerHTML=""; el.expenseLineRows.innerHTML=""; addPayerRow(); addExpenseLine(); el.previewSection.classList.add("hidden"); showReceiptErrors([]); updateBuilderTotals();
   }
 
+
+  function shareMoney(value) {
+    const n = round2(value);
+    const hasCents = Math.abs(n - Math.round(n)) > 0.001;
+    return new Intl.NumberFormat("th-TH", { style:"currency", currency:"THB", minimumFractionDigits:hasCents?2:0, maximumFractionDigits:2 }).format(n);
+  }
+  function participantInitial(name) {
+    const text=String(name||"?").trim();
+    return esc(text.slice(0,2)||"?");
+  }
+  function shareIcon(type) {
+    const icons={
+      people:'<svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c.6-3.7 2.4-5.5 5.5-5.5s4.9 1.8 5.5 5.5M16 6.5a2.5 2.5 0 1 1 0 5M17 13.5c2.2.4 3.5 1.9 3.9 4.5"/></svg>',
+      receipt:'<svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>',
+      drink:'<svg viewBox="0 0 24 24" fill="none"><path d="M6 4h12l-2 7a4.1 4.1 0 0 1-8 0L6 4Z"/><path d="M12 15v5M9 20h6"/></svg>',
+      bed:'<svg viewBox="0 0 24 24" fill="none"><path d="M3 19v-8h18v8M5 11V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4M13 8h5a3 3 0 0 1 3 3M3 16h18"/></svg>',
+      swap:'<svg viewBox="0 0 24 24" fill="none"><path d="m7 7-4 4 4 4M3 11h13M17 5l4 4-4 4M21 9H8"/></svg>',
+      wallet:'<svg viewBox="0 0 24 24" fill="none"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6.5A2.5 2.5 0 0 1 4 17.5v-11Z"/><path d="M4 8h14M15 12h6v4h-6a2 2 0 0 1 0-4Z"/></svg>'
+    };
+    return icons[type]||icons.receipt;
+  }
+  function categoryTotals() {
+    const totals={};
+    state.expenseLines.forEach((line)=>{const key=line.category||"other";totals[key]=round2((totals[key]||0)+Number(line.amount||0));});
+    return totals;
+  }
+  function shareEventSubtitle() {
+    const name=String(state.settings.eventName||"Trip Cost Share").trim();
+    const dates=buildDateRange(state.settings.startDate,state.settings.endDate);
+    const dateText=dates.length?(dates.length===1?dateLabel(dates[0]):`${dateLabel(dates[0])} – ${dateLabel(dates.at(-1))}`):"";
+    return [name,dateText].filter(Boolean).join(" • ");
+  }
+  function createShareRoot(kind) {
+    const root=document.createElement("section");
+    root.className=`generated-share-card generated-share-${kind}`;
+    root.setAttribute("aria-hidden","true");
+    return root;
+  }
+  function buildSummaryShareCard() {
+    const root=createShareRoot("summary");
+    const summary=calculateSummary();
+    const recommendations=transferRecommendations(summary.rows);
+    const totals=categoryTotals();
+    const total=round2(state.receipts.reduce((sum,r)=>sum+Number(r.total||0),0));
+    const alcohol=totals.alcohol||0;
+    const lodging=totals.lodging||0;
+    const rowsHtml=summary.rows.map((r,index)=>{
+      const receive=r.net>EPSILON?r.net:0;
+      const pay=r.net<-EPSILON?-r.net:0;
+      return `<div class="gsc-person-row">
+        <div class="gsc-person"><span class="gsc-avatar avatar-${index%6}">${participantInitial(r.name)}</span><strong>${esc(r.name)}</strong></div>
+        <div class="gsc-cell paid">${r.paid>EPSILON?shareMoney(r.paid):"—"}</div>
+        <div class="gsc-cell receive">${receive>EPSILON?shareMoney(receive):"—"}</div>
+        <div class="gsc-cell pay">${pay>EPSILON?shareMoney(pay):"—"}</div>
+      </div>`;
+    }).join("")||`<div class="gsc-empty">ยังไม่มีข้อมูลรายบุคคล</div>`;
+    const transfersHtml=recommendations.length?recommendations.map((r,index)=>`<div class="gsc-transfer-row">
+      <span class="gsc-avatar avatar-${index%6}">${participantInitial(r.from)}</span><strong>${esc(r.from)}</strong><span class="gsc-arrow">→</span><span class="gsc-avatar avatar-${(index+1)%6}">${participantInitial(r.to)}</span><strong>${esc(r.to)}</strong><span class="gsc-transfer-amount">${shareMoney(r.amount)}</span>
+    </div>`).join(""):`<div class="gsc-empty small">ยอดพอดี หรือยังไม่มีรายการที่ต้องโอน</div>`;
+    root.innerHTML=`
+      <div class="gsc-decor decor-a"></div><div class="gsc-decor decor-b"></div>
+      <header class="gsc-header">
+        <div class="gsc-brand"><span class="gsc-brand-icon">${shareIcon("wallet")}</span><span>Trip Cost Share</span></div>
+        <h1>สรุปค่าใช้จ่ายทริป</h1>
+        <p>${esc(shareEventSubtitle())}</p>
+      </header>
+      <div class="gsc-stats">
+        <div class="gsc-stat stat-blue"><span class="gsc-stat-icon">${shareIcon("people")}</span><small>ผู้ร่วมกิจกรรม</small><strong>${activeParticipants().length.toLocaleString("th-TH")} คน</strong></div>
+        <div class="gsc-stat stat-green"><span class="gsc-stat-icon">${shareIcon("receipt")}</span><small>ค่าใช้จ่ายรวม</small><strong>${shareMoney(total)}</strong></div>
+        <div class="gsc-stat stat-purple"><span class="gsc-stat-icon">${shareIcon("drink")}</span><small>ค่าแอลกอฮอล์</small><strong>${shareMoney(alcohol)}</strong></div>
+        <div class="gsc-stat stat-orange"><span class="gsc-stat-icon">${shareIcon("bed")}</span><small>ค่าที่พัก</small><strong>${shareMoney(lodging)}</strong></div>
+      </div>
+      <section class="gsc-panel">
+        <div class="gsc-section-title"><span class="gsc-title-icon blue">${shareIcon("people")}</span><h2>สรุปยอดรายบุคคล</h2></div>
+        <div class="gsc-person-head"><span>ชื่อ</span><span>ออกก่อน</span><span>รับคืน</span><span>ต้องจ่าย</span></div>
+        <div class="gsc-person-list">${rowsHtml}</div>
+      </section>
+      <section class="gsc-panel">
+        <div class="gsc-section-title"><span class="gsc-title-icon purple">${shareIcon("swap")}</span><h2>แนะนำการโอน</h2></div>
+        <div class="gsc-transfer-list">${transfersHtml}</div>
+      </section>
+      <footer class="gsc-footer">
+        <div><span class="gsc-footer-icon blue">${shareIcon("bed")}</span><span><strong>ค่าที่พัก</strong><small>เฉพาะผู้พักจริง</small></span></div>
+        <i></i>
+        <div><span class="gsc-footer-icon purple">${shareIcon("drink")}</span><span><strong>แอลกอฮอล์</strong><small>คิดเฉพาะผู้ดื่ม</small></span></div>
+      </footer>`;
+    return root;
+  }
+  function buildExpenseShareCard() {
+    const root=createShareRoot("expenses");
+    const totals=categoryTotals();
+    const grand=round2(state.receipts.reduce((s,r)=>s+Number(r.total||0),0));
+    const categoryOrder=["food","beverage","alcohol","lodging","transport","activity","shared","other"];
+    const categoryHtml=categoryOrder.filter((key)=>(totals[key]||0)>EPSILON).map((key)=>`<div class="gsc-category-pill cat-${key}"><span>${esc(CATEGORY_LABELS[key]||key)}</span><strong>${shareMoney(totals[key])}</strong></div>`).join("");
+    const linesByReceipt=new Map(); state.expenseLines.forEach((line)=>{if(!linesByReceipt.has(line.receiptId))linesByReceipt.set(line.receiptId,[]);linesByReceipt.get(line.receiptId).push(line);});
+    const sorted=[...state.receipts].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.createdAt).localeCompare(String(b.createdAt)));
+    const receiptsHtml=sorted.map((receipt,index)=>{
+      const lines=linesByReceipt.get(receipt.id)||[];
+      const payers=(receipt.payerContributions||[]).map((p)=>participantById(p.participantId)?.name||"ไม่พบชื่อ").filter(Boolean);
+      const linePreview=lines.slice(0,3).map((line)=>`<span class="gsc-line-chip cat-${line.category||"other"}">${esc(line.description||CATEGORY_LABELS[line.category]||"รายการ")}</span>`).join("");
+      const more=lines.length>3?`<span class="gsc-line-more">+${lines.length-3}</span>`:"";
+      return `<article class="gsc-expense-row">
+        <div class="gsc-expense-index">${index+1}</div>
+        <div class="gsc-expense-main"><div class="gsc-expense-title"><strong>${esc(receipt.merchant||"ไม่ระบุ")}</strong><span>${esc(dateLabel(receipt.date))}</span></div><small>ผู้จ่าย: ${esc(payers.join(", ")||"-")}</small><div class="gsc-line-chips">${linePreview}${more}</div></div>
+        <strong class="gsc-expense-amount">${shareMoney(receipt.total)}</strong>
+      </article>`;
+    }).join("")||`<div class="gsc-empty">ยังไม่มีรายการค่าใช้จ่าย</div>`;
+    root.innerHTML=`
+      <div class="gsc-decor decor-a"></div><div class="gsc-decor decor-b"></div>
+      <header class="gsc-header compact">
+        <div class="gsc-brand"><span class="gsc-brand-icon">${shareIcon("receipt")}</span><span>Trip Cost Share</span></div>
+        <h1>รายการค่าใช้จ่าย</h1>
+        <p>${esc(shareEventSubtitle())}</p>
+      </header>
+      <div class="gsc-stats expense-stats">
+        <div class="gsc-stat stat-green"><span class="gsc-stat-icon">${shareIcon("receipt")}</span><small>ยอดรวม</small><strong>${shareMoney(grand)}</strong></div>
+        <div class="gsc-stat stat-blue"><span class="gsc-stat-icon">${shareIcon("receipt")}</span><small>ใบเสร็จ</small><strong>${state.receipts.length.toLocaleString("th-TH")} ใบ</strong></div>
+        <div class="gsc-stat stat-purple"><span class="gsc-stat-icon">${shareIcon("drink")}</span><small>แอลกอฮอล์</small><strong>${shareMoney(totals.alcohol||0)}</strong></div>
+        <div class="gsc-stat stat-orange"><span class="gsc-stat-icon">${shareIcon("bed")}</span><small>ที่พัก</small><strong>${shareMoney(totals.lodging||0)}</strong></div>
+      </div>
+      ${categoryHtml?`<section class="gsc-panel gsc-category-panel"><div class="gsc-section-title"><span class="gsc-title-icon green">${shareIcon("wallet")}</span><h2>สรุปตามหมวด</h2></div><div class="gsc-category-grid">${categoryHtml}</div></section>`:""}
+      <section class="gsc-panel gsc-expense-panel">
+        <div class="gsc-section-title"><span class="gsc-title-icon blue">${shareIcon("receipt")}</span><h2>รายการทั้งหมด</h2></div>
+        <div class="gsc-expense-list">${receiptsHtml}</div>
+      </section>
+      <footer class="gsc-footer single"><div><span class="gsc-footer-icon blue">${shareIcon("receipt")}</span><span><strong>${state.receipts.length.toLocaleString("th-TH")} ใบเสร็จ</strong><small>รวม ${state.expenseLines.length.toLocaleString("th-TH")} รายการย่อย</small></span></div><span class="gsc-footer-total">${shareMoney(grand)}</span></footer>`;
+    return root;
+  }
   async function ensureHtml2Canvas() {
     if (window.html2canvas) return;
     await new Promise((resolve,reject)=>{const script=document.createElement("script"); script.src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"; script.onload=resolve; script.onerror=()=>reject(new Error("โหลดระบบสร้างรูปไม่สำเร็จ")); document.head.appendChild(script);});
   }
-  async function shareSection(id,filename) {
-    try { await ensureHtml2Canvas(); const node=$(id); const canvas=await html2canvas(node,{scale:Math.min(2,window.devicePixelRatio||1),backgroundColor:"#ffffff",useCORS:true}); const blob=await new Promise((resolve)=>canvas.toBlob(resolve,"image/png")); if(!blob)throw new Error("สร้างรูปไม่สำเร็จ"); const file=new File([blob],filename,{type:"image/png"}); if(navigator.canShare?.({files:[file]}))await navigator.share({files:[file],title:el.appTitle.textContent}); else {const url=URL.createObjectURL(blob); const link=document.createElement("a");link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);} } catch(error){if(error?.name!=="AbortError")showToast(error.message||"แชร์รูปไม่สำเร็จ");}
+  async function shareGeneratedCard(kind,filename) {
+    let root;
+    try {
+      await ensureHtml2Canvas();
+      root=kind==="expenses"?buildExpenseShareCard():buildSummaryShareCard();
+      document.body.appendChild(root);
+      if (document.fonts?.ready) await document.fonts.ready;
+      await new Promise((resolve)=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const height=root.scrollHeight;
+      const scale=height>4200?1.05:height>3000?1.2:1.5;
+      const canvas=await html2canvas(root,{scale,backgroundColor:null,useCORS:true,logging:false,windowWidth:1000});
+      const blob=await new Promise((resolve)=>canvas.toBlob(resolve,"image/png",0.96));
+      if(!blob)throw new Error("สร้างรูปไม่สำเร็จ");
+      const file=new File([blob],filename,{type:"image/png"});
+      if(navigator.canShare?.({files:[file]})) await navigator.share({files:[file],title:el.appTitle.textContent});
+      else {const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);}
+    } catch(error) {
+      if(error?.name!=="AbortError")showToast(error.message||"แชร์รูปไม่สำเร็จ");
+    } finally { root?.remove(); }
   }
 
   el.participantForm.addEventListener("submit",async(event)=>{
@@ -515,8 +660,8 @@
     finally{setFormBusy(el.receiptForm,false,el.receiptSubmitBtn);}
   });
   el.refreshBtn.addEventListener("click",()=>loadData({fresh:true,useSnapshot:false}));
-  el.shareReceiptsBtn.addEventListener("click",()=>shareSection("receiptShareSection","expense-list.png"));
-  el.shareSummaryBtn.addEventListener("click",()=>shareSection("summaryShareSection","expense-summary.png"));
+  el.shareReceiptsBtn.addEventListener("click",()=>shareGeneratedCard("expenses","trip-expense-list.png"));
+  el.shareSummaryBtn.addEventListener("click",()=>shareGeneratedCard("summary","trip-cost-summary.png"));
 
   addPayerRow(); addExpenseLine(); loadData();
 })();
