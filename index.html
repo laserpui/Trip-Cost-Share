@@ -97,6 +97,7 @@
                 <label class="field"><span>ชื่อผู้ร่วมกิจกรรม</span><input id="participantName" type="text" maxlength="80" placeholder="เช่น ปุ๋ย" required></label>
                 <fieldset class="choice-box"><legend>วันที่เข้าร่วม</legend><div id="attendanceDateOptions" class="choice-grid"></div></fieldset>
                 <fieldset class="choice-box"><legend>คืนที่เข้าพัก</legend><div id="lodgingNightOptions" class="choice-grid"></div></fieldset>
+                <label class="switch-row"><span><strong>ดื่มเครื่องดื่มแอลกอฮอล์</strong><small>ใช้เป็นค่าเริ่มต้นในการเลือกผู้ร่วมรับผิดชอบหมวดแอลกอฮอล์</small></span><input id="drinksAlcohol" type="checkbox"></label>
                 <button id="saveParticipantBtn" class="btn primary wide" type="submit">บันทึกผู้ร่วมกิจกรรม</button>
               </form>
             </section>
@@ -166,7 +167,7 @@
   <template id="expenseLineTemplate">
     <article class="line-card">
       <div class="line-card-head"><strong class="line-number">รายการที่ 1</strong><button class="btn danger remove-line-btn" type="button">ลบรายการ</button></div>
-      <div class="form-row"><label class="field"><span>รายละเอียด</span><input class="line-description" type="text" maxlength="120" required></label><label class="field"><span>หมวด</span><select class="line-category" required><option value="food">ค่าอาหาร</option><option value="beverage">เครื่องดื่ม</option><option value="lodging">ที่พัก</option><option value="activity">กิจกรรม</option><option value="transport">การเดินทาง</option><option value="shared">ของใช้ส่วนกลาง</option><option value="other">อื่น ๆ</option></select></label></div>
+      <div class="form-row"><label class="field"><span>รายละเอียด</span><input class="line-description" type="text" maxlength="120" required></label><label class="field"><span>หมวด</span><select class="line-category" required><option value="food">ค่าอาหาร</option><option value="beverage">เครื่องดื่ม</option><option value="alcohol">เครื่องดื่มแอลกอฮอล์</option><option value="lodging">ที่พัก</option><option value="activity">กิจกรรม</option><option value="transport">การเดินทาง</option><option value="shared">ของใช้ส่วนกลาง</option><option value="other">อื่น ๆ</option></select></label></div>
       <div class="form-row"><label class="field line-amount-field"><span>จำนวนเงิน</span><input class="line-amount" type="number" min="0.01" step="0.01"></label><label class="field"><span>วิธีหาร</span><select class="line-split-mode"><option value="attendance_date">ผู้ที่มาในวันนั้น</option><option value="lodging_night">ผู้ที่พักในคืนที่เลือก</option><option value="selected_equal">เลือกคนหารเท่ากัน</option><option value="person_days">ตามคน-วัน</option><option value="weighted">ตามหน่วย/น้ำหนัก</option><option value="manual">ระบุยอดต่อคน</option><option value="all_equal">ทุกคนเท่ากัน</option></select></label></div>
       <label class="field line-service-date-field hidden"><span>คืนที่พักอ้างอิง</span><input class="line-service-date" type="date"></label>
       <p class="line-hint field-hint"></p>

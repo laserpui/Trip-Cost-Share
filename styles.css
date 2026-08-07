@@ -236,3 +236,25 @@ th { color:var(--muted); font-size:.78rem; background:#fafbfc; font-weight:800; 
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after { scroll-behavior:auto !important; transition:none !important; animation:none !important; }
 }
+
+/* v6.1 participant alcohol preference */
+.switch-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:13px 14px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:rgba(255,255,255,.78);
+}
+.switch-row > span { display:grid; gap:2px; }
+.switch-row strong { font-size:.92rem; }
+.switch-row small { color:var(--muted); font-size:.78rem; font-weight:500; }
+.switch-row input[type="checkbox"] {
+  width:22px;
+  height:22px;
+  min-height:22px;
+  flex:0 0 auto;
+  accent-color:#4f46e5;
+}

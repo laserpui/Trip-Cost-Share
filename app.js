@@ -3,7 +3,9 @@
 
   const CONFIG = window.APP_CONFIG || {};
   const API_URL = String(CONFIG.API_URL || "").trim();
-  const IS_DEMO = !/^https:\/\/script\.google\.com\/macros\/s\//.test(API_URL);
+  const HAS_API_URL = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/(?:exec|dev)(?:\?.*)?$/.test(API_URL);
+  const IS_DEMO = !HAS_API_URL && CONFIG.ENABLE_DEMO_MODE === true;
+  const CONFIG_ERROR = !HAS_API_URL && !IS_DEMO;
   const STORAGE_KEY = "trip-cost-share-v6-demo";
   const SNAPSHOT_KEY = "trip-cost-share-v6-snapshot";
   const SNAPSHOT_MAX_AGE_MS = Math.max(5, Number(CONFIG.SNAPSHOT_MAX_AGE_MINUTES || 30)) * 60 * 1000;
@@ -18,7 +20,7 @@
     transport: "การเดินทาง",
     shared: "ของใช้ส่วนกลาง",
     other: "อื่น ๆ",
-    alcohol: "เครื่องดื่ม (ข้อมูลเดิม)"
+    alcohol: "เครื่องดื่มแอลกอฮอล์"
   };
   const SPLIT_LABELS = {
     attendance_date: "ผู้ที่มาในวันนั้น",
@@ -37,7 +39,7 @@
     refreshBtn: $("refreshBtn"), lastUpdated: $("lastUpdated"), toast: $("toast"),
     participantCount: $("participantCount"), attendanceUnitCount: $("attendanceUnitCount"), grandTotal: $("grandTotal"), receiptCount: $("receiptCount"),
     lodgingExpenseTotal: $("lodgingExpenseTotal"), lodgingExpenseCount: $("lodgingExpenseCount"), openBalance: $("openBalance"),
-    participantForm: $("participantForm"), participantName: $("participantName"), attendanceDateOptions: $("attendanceDateOptions"), lodgingNightOptions: $("lodgingNightOptions"), participantList: $("participantList"),
+    participantForm: $("participantForm"), participantName: $("participantName"), attendanceDateOptions: $("attendanceDateOptions"), lodgingNightOptions: $("lodgingNightOptions"), drinksAlcohol: $("drinksAlcohol"), participantList: $("participantList"),
     receiptForm: $("receiptForm"), receiptDate: $("receiptDate"), receiptMerchant: $("receiptMerchant"), receiptTotal: $("receiptTotal"), receiptImage: $("receiptImage"), receiptImageHint: $("receiptImageHint"), receiptNote: $("receiptNote"),
     payerBuilderBlock: $("payerBuilderBlock"), payerModeHint: $("payerModeHint"), addPayerBtn: $("addPayerBtn"), payerRows: $("payerRows"), payerContributionTotal: $("payerContributionTotal"),
     lineBuilderBlock: $("lineBuilderBlock"), addLineBtn: $("addLineBtn"), expenseLineRows: $("expenseLineRows"), lineTotal: $("lineTotal"),
@@ -113,7 +115,7 @@
       setConnection("warning", "กิจกรรมปิดยอดแล้ว");
       el.demoBanner.classList.remove("hidden");
       el.demoBanner.innerHTML = "<strong>กิจกรรมปิดยอดแล้ว:</strong> เปิดกิจกรรมจากหน้า Admin ก่อนเพิ่มข้อมูลใหม่";
-    } else if (!IS_DEMO) {
+    } else if (!IS_DEMO && !CONFIG_ERROR) {
       el.demoBanner.classList.add("hidden");
     }
   }
@@ -174,6 +176,14 @@
   }
 
   async function loadData({ fresh = false, useSnapshot = true } = {}) {
+    if (CONFIG_ERROR) {
+      setConnection("danger", "ยังไม่ได้ตั้ง API URL");
+      el.demoBanner.classList.remove("hidden");
+      el.demoBanner.innerHTML = "<strong>ยังไม่ได้เชื่อม Google Sheet:</strong> กรุณาใส่ Web App URL จริงใน <code>config.js</code> ที่ค่า <code>API_URL</code> แล้วกด Ctrl + F5 — v6.1 จะไม่เข้าโหมดทดลองอัตโนมัติอีก";
+      normalizeState(); renderAll();
+      el.lastUpdated.textContent = "รอการตั้งค่า Google Apps Script URL";
+      return;
+    }
     const hadSnapshot = useSnapshot && restoreSnapshot();
     if (hadSnapshot) setConnection("warning", "กำลังซิงก์ข้อมูล");
     try {
@@ -197,7 +207,7 @@
     el.eventDateLabel.textContent = dates.length ? `${dateLabel(dates[0])} – ${dateLabel(dates.at(-1))}` : "ยังไม่ได้ตั้งช่วงกิจกรรม";
     el.receiptShareTitle.textContent = el.summaryShareTitle.textContent = title;
     el.receiptShareSubtitle.textContent = el.summaryShareSubtitle.textContent = el.eventDateLabel.textContent;
-    if (!IS_DEMO && String(state.settings.status || "open") !== "closed") setConnection("success", "เชื่อม Google Sheet แล้ว");
+    if (HAS_API_URL && String(state.settings.status || "open") !== "closed") setConnection("success", "เชื่อม Google Sheet แล้ว");
     applyClosedState();
   }
   function renderAttendanceOptions() {
@@ -212,7 +222,7 @@
     const rows = activeParticipants();
     if (!rows.length) { el.participantList.className = "participant-list empty-state"; el.participantList.textContent = "ยังไม่มีรายชื่อ"; return; }
     el.participantList.className = "participant-list";
-    el.participantList.innerHTML = rows.map((p) => `<div class="participant-item"><span class="avatar">${esc(p.name.slice(0,1))}</span><div><strong>${esc(p.name)}</strong><small>เข้าร่วม ${(p.attendanceDates || []).length} วัน · พัก ${(p.lodgingNights || []).length} คืน</small></div></div>`).join("");
+    el.participantList.innerHTML = rows.map((p) => `<div class="participant-item"><span class="avatar">${esc(p.name.slice(0,1))}</span><div><strong>${esc(p.name)}</strong><small>เข้าร่วม ${(p.attendanceDates || []).length} วัน · พัก ${(p.lodgingNights || []).length} คืน · ${p.drinksAlcohol ? "ดื่มแอลกอฮอล์" : "ไม่ดื่มแอลกอฮอล์"}</small></div></div>`).join("");
   }
 
   function participantOptions(selected = "", includeInactive = false) {
@@ -243,14 +253,15 @@
   }
   function lineCandidates(card) {
     const mode = card.querySelector(".line-split-mode").value;
+    const category = card.querySelector(".line-category").value;
     const serviceDate = card.querySelector(".line-service-date").value || el.receiptDate.value;
-    if (mode === "attendance_date") return activeParticipants().filter((p) => p.attendanceDates.includes(el.receiptDate.value));
-    if (mode === "lodging_night") return activeParticipants().filter((p) => p.lodgingNights.includes(serviceDate));
-    return activeParticipants();
+    let rows = activeParticipants();
+    if (mode === "attendance_date") rows = rows.filter((p) => p.attendanceDates.includes(el.receiptDate.value));
+    if (mode === "lodging_night") rows = rows.filter((p) => p.lodgingNights.includes(serviceDate));
+    if (category === "alcohol") rows = rows.filter((p) => p.drinksAlcohol === true);
+    return rows;
   }
   function defaultSelected(card) {
-    const mode = card.querySelector(".line-split-mode").value;
-    if (mode === "all_equal") return activeParticipants().map((p) => p.id);
     return lineCandidates(card).map((p) => p.id);
   }
   function collectLineSelection(card) {
@@ -262,7 +273,7 @@
     const mode = card.querySelector(".line-split-mode").value; const container = card.querySelector(".line-participant-options");
     const prior = preserve ? collectLineSelection(card) : { selectedIds: defaultSelected(card), values: {} };
     const candidates = lineCandidates(card);
-    const selected = mode === "all_equal" ? activeParticipants().map((p) => p.id) : prior.selectedIds.filter((id) => candidates.some((p) => p.id === id));
+    const selected = mode === "all_equal" ? candidates.map((p) => p.id) : prior.selectedIds.filter((id) => candidates.some((p) => p.id === id));
     const ids = selected.length ? selected : (preserve && prior.selectedIds.length ? [] : defaultSelected(card));
     container.innerHTML = candidates.length ? candidates.map((p) => participantSelectionHtml(p, mode, ids, prior.values)).join("") : `<span class="field-hint">ไม่มีผู้ร่วมกิจกรรมที่ตรงกับเงื่อนไขนี้</span>`;
     container.querySelectorAll(".share-person-check").forEach((check) => {
@@ -275,7 +286,7 @@
   function setLineDefaultsFromCategory(card) {
     const category = card.querySelector(".line-category").value; const split = card.querySelector(".line-split-mode");
     if (category === "lodging") split.value = "lodging_night";
-    else if (["food","beverage"].includes(category)) split.value = "attendance_date";
+    else if (["food","beverage","alcohol"].includes(category)) split.value = "attendance_date";
     else if (category === "shared") split.value = "person_days";
     else split.value = "selected_equal";
     updateLineModeUi(card); renderLineParticipants(card, false);
@@ -303,7 +314,7 @@
     const fragment = $("expenseLineTemplate").content.cloneNode(true); const card = fragment.querySelector(".line-card");
     card.dataset.lineId = data.id || uid("line");
     card.querySelector(".line-description").value = data.description || "";
-    const category = data.category === "alcohol" ? "beverage" : (data.category || "food");
+    const category = data.category || "food";
     card.querySelector(".line-category").value = category;
     card.querySelector(".line-amount").value = data.amount || "";
     card.querySelector(".line-split-mode").value = data.splitMode || (category === "lodging" ? "lodging_night" : "attendance_date");
@@ -344,7 +355,7 @@
   }
   function calculateLineShares(line) {
     let ids = [...new Set(line.selectedParticipantIds || [])].filter((id) => participantById(id));
-    if (line.splitMode === "all_equal") ids = activeParticipants().map((p) => p.id);
+    if (line.splitMode === "all_equal") ids = activeParticipants().filter((p) => line.category !== "alcohol" || p.drinksAlcohol === true).map((p) => p.id);
     if (!ids.length) return { error:"ไม่มีผู้ร่วมรับผิดชอบ", shares:{} };
     const cents = Math.round(Number(line.amount || 0) * 100); if (!(cents > 0)) return { error:"ยอดรายการต้องมากกว่า 0", shares:{} };
     if (line.splitMode === "manual") {
@@ -486,7 +497,7 @@
   el.participantForm.addEventListener("submit",async(event)=>{
     event.preventDefault(); const name=el.participantName.value.trim(); const attendanceDates=[...el.attendanceDateOptions.querySelectorAll("input:checked")].map((x)=>x.value); const lodgingNights=[...el.lodgingNightOptions.querySelectorAll("input:checked")].map((x)=>x.value);
     if(!name)return showToast("กรุณากรอกชื่อ"); if(!attendanceDates.length)return showToast("กรุณาเลือกวันที่เข้าร่วมอย่างน้อย 1 วัน");
-    const payload={id:uid("p"),name,attendanceDates,lodgingNights,drinksAlcohol:false,active:true}; setFormBusy(el.participantForm,true,$("saveParticipantBtn"),"กำลังบันทึก...");
+    const payload={id:uid("p"),name,attendanceDates,lodgingNights,drinksAlcohol:Boolean(el.drinksAlcohol?.checked),active:true}; setFormBusy(el.participantForm,true,$("saveParticipantBtn"),"กำลังบันทึก...");
     try{await addParticipant(payload);normalizeState();resetParticipantForm();renderAll();showToast("บันทึกผู้ร่วมกิจกรรมแล้ว");}catch(error){console.error(error);showToast(error.message);}finally{setFormBusy(el.participantForm,false,$("saveParticipantBtn"));}
   });
 
